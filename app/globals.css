@@ -2,26 +2,120 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Dearly design tokens ───────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Dreamy Lavender palette (default) */
+  --palette-sky-top:    #c4b5e8;
+  --palette-sky-mid:    #ddd0f5;
+  --palette-sky-low:    #ede6f9;
+  --palette-horizon:    #f5e8e0;
+  --palette-ground:     #e8ddf5;
+  --palette-ground-mid: #d4c8ee;
+  --palette-surface:    rgba(255,252,255,0.78);
+  --palette-surface-border: rgba(190,175,220,0.35);
+  --palette-text-primary:   #3b2e5a;
+  --palette-text-muted:     #6b5b8a;
+  --palette-accent:         #9b7fd4;
+  --palette-accent-soft:    #c9b5eb;
+  --palette-particle:       #b8a4e0;
+
+  /* Base token aliases */
+  --background: var(--palette-sky-top);
+  --foreground: var(--palette-text-primary);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Morning Sky palette override */
+[data-palette="morning-sky"] {
+  --palette-sky-top:    #aed6f0;
+  --palette-sky-mid:    #c9e8f7;
+  --palette-sky-low:    #dff2fb;
+  --palette-horizon:    #fef0d8;
+  --palette-ground:     #e0eef8;
+  --palette-ground-mid: #ccdeed;
+  --palette-surface:    rgba(250,255,255,0.80);
+  --palette-surface-border: rgba(160,195,230,0.35);
+  --palette-text-primary:   #1e3a4f;
+  --palette-text-muted:     #3d6b84;
+  --palette-accent:         #5baacc;
+  --palette-accent-soft:    #97cce0;
+  --palette-particle:       #89c5de;
+
+  --background: var(--palette-sky-top);
+  --foreground: var(--palette-text-primary);
 }
 
-body {
+/* ── Base reset ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden; /* full-page scene; scroll within panels */
+  font-family: 'Nunito Sans', 'Inter', system-ui, sans-serif;
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* ── Focus ring ─────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--palette-accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ── Reduced-motion: disable all transitions & animations ───────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
+}
+
+/* ── Scrollable overlay panels ──────────────────────────────────────── */
+.panel-scroll {
+  overflow-y: auto;
+  max-height: 70vh;
+  scrollbar-width: thin;
+  scrollbar-color: var(--palette-accent-soft) transparent;
+}
+
+/* ── Utility: glass surface ─────────────────────────────────────────── */
+.glass {
+  background: var(--palette-surface);
+  border: 1px solid var(--palette-surface-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Cloud drift keyframe ───────────────────────────────────────────── */
+@keyframes cloudDrift {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(18px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes cloudDriftSlow {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(-12px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes particleFloat {
+  0%   { transform: translateY(0) scale(1);   opacity: 0.6; }
+  50%  { transform: translateY(-14px) scale(1.15); opacity: 0.9; }
+  100% { transform: translateY(0) scale(1);   opacity: 0.6; }
+}
+
+@keyframes leafSway {
+  0%   { transform: rotate(-2deg); }
+  50%  { transform: rotate(2deg); }
+  100% { transform: rotate(-2deg); }
+}
+
+@keyframes glowPulse {
+  0%   { opacity: 0.4; }
+  50%  { opacity: 0.75; }
+  100% { opacity: 0.4; }
 }
