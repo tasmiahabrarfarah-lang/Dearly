@@ -1,16 +1,15 @@
 "use client";
 
 /**
- * PanelContents — all placeholder panel body components.
- * Each panel explains what will be built in a future milestone
- * in a calm, readable way. No dummy data, no misleading mock content.
+ * PanelContents — placeholder panel bodies for non-diary panels.
+ * The diary is fully implemented in components/diary/.
  */
 
 import React from "react";
-import { BookOpen, Users, Bell, Compass, Sparkles, User } from "lucide-react";
+import { Users, Bell, Compass, Sparkles, User } from "lucide-react";
 import { useTheme, PALETTES, PaletteId } from "./ThemeContext";
 
-/* ── Shared tiny heading ─────────────────────────────────────────────── */
+/* ── Shared helpers ──────────────────────────────────────────────────── */
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p
@@ -47,31 +46,6 @@ function MilestoneChip({ label }: { label: string }) {
   );
 }
 
-/* ── Diary Panel ─────────────────────────────────────────────────────── */
-export function DiaryPanelContent() {
-  return (
-    <div className="flex flex-col items-center text-center gap-4 py-2">
-      <div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center"
-        style={{ background: "var(--palette-ground)" }}
-      >
-        <BookOpen size={28} style={{ color: "var(--palette-accent)" }} aria-hidden="true" />
-      </div>
-      <div>
-        <h3
-          className="text-base font-semibold mb-2"
-          style={{ color: "var(--palette-text-primary)" }}
-        >
-          Your Diary Awaits
-        </h3>
-        <Note>
-          The diary-writing experience is coming in the next milestone. Soon you&apos;ll be able to write, reflect, and keep your memories right here — quietly and just for you.
-        </Note>
-      </div>
-      <MilestoneChip label="✦ Coming in Milestone 2" />
-    </div>
-  );
-}
 
 /* ── Friends Panel ───────────────────────────────────────────────────── */
 export function FriendsPanelContent() {

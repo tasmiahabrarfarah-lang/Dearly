@@ -20,7 +20,6 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 
 import MagicParticles from "./MagicParticles";
-import TreeIllustration from "./TreeIllustration";
 import DiaryObject from "./DiaryObject";
 import ProfileCard from "./ProfileCard";
 import QuickControls, { QuickControlKey } from "./QuickControls";
@@ -28,8 +27,13 @@ import SceneActions, { SceneActionKey } from "./SceneActions";
 import OverlayPanel from "./OverlayPanel";
 import NavigatorHint from "./NavigatorHint";
 
+import DiaryExperience from "./diary/DiaryExperience";
+
+import { TreeProvider, useTree } from "./tree/TreeContext";
+import TreeStageIllustration from "./tree/TreeStageIllustration";
+import SeedSelectionModal from "./tree/SeedSelectionModal";
+
 import {
-  DiaryPanelContent,
   FriendsPanelContent,
   NotificationsPanelContent,
   SettingsPanelContent,
@@ -49,15 +53,7 @@ type ActivePanel =
   | "world"
   | null;
 
-const PANEL_TITLES: Record<Exclude<ActivePanel, null>, string> = {
-  diary:         "My Diary",
-  friends:       "Friends",
-  notifications: "Notifications",
-  settings:      "Settings",
-  profile:       "My Profile",
-  explore:       "Explore",
-  world:         "My World",
-};
+
 
 /* ─── Sky clouds SVG ────────────────────────────────────────────────── */
 /* Uses shaped cloud paths for recognizable silhouettes instead of blurred blobs */
@@ -332,29 +328,34 @@ function DearlyWordmark() {
   );
 }
 
-/* ─── HomeScene ─────────────────────────────────────────────────────── */
-export default function HomeScene() {
-  const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+/* ─── HomeSceneInner (consumes TreeContext) ─────────────────────────── */
+function HomeSceneInner() {
+  const { treeState, isLoaded, awardGrowth } = useTree();
 
-  const open = (panel: ActivePanel) => setActivePanel(panel);
+  // Diary has its own full-screen experience
+  const [diaryOpen, setDiaryOpen] = useState(false);
+
+  // All other panels stay in OverlayPanel
+  const [activePanel, setActivePanel] = useState<Exclude<ActivePanel, "diary">>(null);
+
+  const openDiary = () => setDiaryOpen(true);
+  const closeDiary = () => setDiaryOpen(false);
+
+  const open = (panel: Exclude<ActivePanel, "diary">) => setActivePanel(panel);
   const close = () => setActivePanel(null);
 
-  // Scene action handler
   const handleSceneAction = (action: SceneActionKey) => {
-    if (action === "diary")   open("diary");
+    if (action === "diary")   openDiary();
     if (action === "explore") open("explore");
     if (action === "world")   open("world");
   };
 
-  // Quick control handler
   const handleQuickControl = (key: QuickControlKey) => {
-    open(key as ActivePanel);
+    open(key as Exclude<ActivePanel, "diary">);
   };
 
-  // Panel body renderer
   const renderPanelContent = () => {
     switch (activePanel) {
-      case "diary":         return <DiaryPanelContent />;
       case "friends":       return <FriendsPanelContent />;
       case "notifications": return <NotificationsPanelContent />;
       case "settings":      return <SettingsPanelContent />;
@@ -363,6 +364,15 @@ export default function HomeScene() {
       case "world":         return <WorldPanelContent />;
       default:              return null;
     }
+  };
+
+  const panelTitles: Record<Exclude<ActivePanel, "diary" | null>, string> = {
+    friends:       "Friends",
+    notifications: "Notifications",
+    settings:      "Settings",
+    profile:       "My Profile",
+    explore:       "Explore",
+    world:         "My World",
   };
 
   return (
@@ -383,7 +393,7 @@ export default function HomeScene() {
       {/* ── Ground ────────────────────────────────────── */}
       <Ground />
 
-      {/* ── Tree (right side) — roots meet the ground ── */}
+      {/* ── Tree (right side) — stage-aware illustration ── */}
       <div
         aria-hidden="true"
         className="absolute pointer-events-none"
@@ -394,18 +404,31 @@ export default function HomeScene() {
           height: "clamp(260px, 48vh, 530px)",
         }}
       >
-        <TreeIllustration />
+        {/* Show tree only once treeType is loaded+selected; fallback to seed placeholder */}
+        {isLoaded && treeState.treeType ? (
+          <TreeStageIllustration
+            treeType={treeState.treeType}
+            stage={treeState.stage}
+          />
+        ) : isLoaded ? (
+          /* No tree selected yet — show a magical seed glow placeholder */
+          <div className="w-full h-full flex items-end justify-center pb-4">
+            <motion.div
+              className="w-12 h-12 rounded-full"
+              style={{ background: "radial-gradient(circle, #d0b8f8 0%, #a088d0 60%, transparent 100%)" }}
+              animate={{ opacity: [0.4, 0.8, 0.4], scale: [0.9, 1.1, 0.9] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </div>
+        ) : null}
       </div>
 
       {/* ── UI Chrome — top bar ────────────────────────── */}
       <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-4 sm:px-6 sm:pt-5">
-        {/* Left: Wordmark + Profile */}
         <div className="flex items-center gap-3 flex-wrap">
           <DearlyWordmark />
           <ProfileCard onOpen={() => open("profile")} />
         </div>
-
-        {/* Right: Quick controls */}
         <QuickControls onOpen={handleQuickControl} />
       </header>
 
@@ -418,28 +441,41 @@ export default function HomeScene() {
           bottom: "clamp(75px, 14%, 130px)",
         }}
       >
-        <DiaryObject onOpen={() => open("diary")} />
+        <DiaryObject onOpen={openDiary} />
       </div>
 
       {/* ── Bottom scene actions ────────────────────────── */}
-      <footer
-        className="absolute bottom-0 left-0 right-0 z-20 flex justify-center pb-5 sm:pb-7"
-      >
+      <footer className="absolute bottom-0 left-0 right-0 z-20 flex justify-center pb-5 sm:pb-7">
         <SceneActions onAction={handleSceneAction} />
       </footer>
 
       {/* ── Navigator hint ─────────────────────────────── */}
       <NavigatorHint />
 
-      {/* ── Overlay panels ─────────────────────────────── */}
+      {/* ── Overlay panels (non-diary) ──────────────────── */}
       <OverlayPanel
         isOpen={activePanel !== null}
         onClose={close}
-        title={activePanel ? PANEL_TITLES[activePanel] : ""}
+        title={activePanel ? panelTitles[activePanel as Exclude<ActivePanel, "diary" | null>] : ""}
         maxWidth={activePanel === "settings" ? "max-w-sm" : "max-w-md"}
       >
         {renderPanelContent()}
       </OverlayPanel>
+
+      {/* ── Diary full-screen experience ────────────────── */}
+      <DiaryExperience isOpen={diaryOpen} onClose={closeDiary} onNewEntrySaved={awardGrowth} />
+
+      {/* ── Seed selection modal (only when no tree chosen yet) ── */}
+      {isLoaded && !treeState.treeType && <SeedSelectionModal />}
     </main>
+  );
+}
+
+/* ─── HomeScene — wraps inner scene in TreeProvider ─────────────────── */
+export default function HomeScene() {
+  return (
+    <TreeProvider>
+      <HomeSceneInner />
+    </TreeProvider>
   );
 }
