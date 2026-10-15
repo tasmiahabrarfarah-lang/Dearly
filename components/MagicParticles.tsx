@@ -19,17 +19,13 @@ interface Particle {
 }
 
 // Fixed particle positions — no Math.random() to avoid SSR/hydration mismatch
+// Reduced to 5 particles for a calmer, still-illustration feel
 const PARTICLES: Particle[] = [
-  { cx: 12, cy: 78, r: 2.5, delay: 0,   duration: 6 },
-  { cx: 28, cy: 60, r: 1.8, delay: 1.2, duration: 7.5 },
-  { cx: 45, cy: 88, r: 3,   delay: 2.4, duration: 5.5 },
-  { cx: 62, cy: 72, r: 2,   delay: 0.8, duration: 8 },
-  { cx: 75, cy: 55, r: 1.5, delay: 3,   duration: 6.5 },
-  { cx: 88, cy: 82, r: 2.8, delay: 1.8, duration: 7 },
-  { cx: 33, cy: 42, r: 1.6, delay: 4,   duration: 9 },
-  { cx: 55, cy: 35, r: 2.2, delay: 2.2, duration: 6.8 },
-  { cx: 80, cy: 30, r: 1.4, delay: 0.5, duration: 8.5 },
-  { cx: 20, cy: 22, r: 3.2, delay: 3.5, duration: 5.8 },
+  { cx: 18, cy: 72, r: 2.2, delay: 0,   duration: 8 },
+  { cx: 42, cy: 55, r: 1.6, delay: 2.0, duration: 9.5 },
+  { cx: 68, cy: 82, r: 2.6, delay: 1.2, duration: 7.5 },
+  { cx: 80, cy: 42, r: 1.4, delay: 3.5, duration: 10 },
+  { cx: 28, cy: 30, r: 1.8, delay: 4.5, duration: 8.5 },
 ];
 
 export default function MagicParticles() {

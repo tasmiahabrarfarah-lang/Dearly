@@ -64,12 +64,12 @@ export const TREE_TYPES: TreeMeta[] = [
     name: "Moonlight",
     description: "Silver leaves that shimmer like moonlight on still water.",
     palette: {
-      trunk:   "#9aaabf",
-      foliage: "#c8daf0",
-      flower:  "#1e2d6a",
-      fruit:   "#7090d0",
-      glow:    "#b8d4f8",
-      ground:  "#a8c4e8",
+      trunk:   "#8898b2",   // cool silver-grey
+      foliage: "#ccd8ee",   // pale silver-blue
+      flower:  "#1a2560",   // midnight-blue
+      fruit:   "#6888cc",   // soft blue teardrop
+      glow:    "#aacaf0",   // cool blue-white glow
+      ground:  "#94b8e0",   // soft blue pool
     },
   },
   {
@@ -77,12 +77,12 @@ export const TREE_TYPES: TreeMeta[] = [
     name: "Starlight",
     description: "Golden boughs that glow softly like captured starlight.",
     palette: {
-      trunk:   "#a08060",
-      foliage: "#f0e0a0",
-      flower:  "#d47820",
-      fruit:   "#e8c050",
-      glow:    "#f8e890",
-      ground:  "#e8d070",
+      trunk:   "#8a6840",   // warm chestnut-brown
+      foliage: "#6a9840",   // natural green foliage
+      flower:  "#f0e8c8",   // ivory/cream petals
+      fruit:   "#e8b030",   // golden apple
+      glow:    "#f0d860",   // warm golden glow
+      ground:  "#c8a030",   // golden ground pool
     },
   },
   {
@@ -90,12 +90,12 @@ export const TREE_TYPES: TreeMeta[] = [
     name: "Lapis Lazuli",
     description: "Deep blue foliage dusted with flecks of gold.",
     palette: {
-      trunk:   "#506080",
-      foliage: "#3860a8",
-      flower:  "#c0a820",
-      fruit:   "#2840a0",
-      glow:    "#6090e0",
-      ground:  "#4070c0",
+      trunk:   "#2a4068",   // deep navy trunk
+      foliage: "#2858a0",   // deep lapis-blue foliage
+      flower:  "#c8a010",   // rich gold elongated flowers
+      fruit:   "#1830a0",   // deep indigo crystal
+      glow:    "#50a0e8",   // cyan-blue magical glow
+      ground:  "#3060b8",   // vivid blue ground pool
     },
   },
   {
@@ -103,12 +103,12 @@ export const TREE_TYPES: TreeMeta[] = [
     name: "Ruby",
     description: "Crimson leaves that blush with warmth and quiet fire.",
     palette: {
-      trunk:   "#784848",
-      foliage: "#e07070",
-      flower:  "#ffc0b0",
-      fruit:   "#c03030",
-      glow:    "#f8a0a0",
-      ground:  "#e06060",
+      trunk:   "#6a3828",   // chestnut-brown trunk
+      foliage: "#c83838",   // true crimson foliage
+      flower:  "#1a0808",   // near-black dark rosette
+      fruit:   "#3a7028",   // deep forest-green fruit
+      glow:    "#f07060",   // warm ember-orange glow
+      ground:  "#b03030",   // deep red ground pool
     },
   },
 ];

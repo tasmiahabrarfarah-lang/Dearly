@@ -4,20 +4,17 @@
  * HomeScene
  * The full-page illustrated home screen.
  * Layers:
- *   1. Sky gradient background (CSS)
- *   2. SVG clouds (slow drift)
- *   3. Horizon haze
- *   4. Ground / platform
- *   5. Tree (right-of-centre, behind diary)
- *   6. Magic particles
- *   7. Diary object (foreground centre)
- *   8. UI chrome: ProfileCard, QuickControls, SceneActions
- *   9. Overlay panels
- *  10. NavigatorHint
+ *   1. Background artwork (home-background.webp) — z-0
+ *   2. Foreground meadow overlay (foreground-meadow.webp) — z-1, transparent centre
+ *   3. Magic particles — z-2
+ *   4. Tree (right-of-centre) — z-3
+ *   5. Diary object (foreground centre) — z-10
+ *   6. UI chrome: header, footer — z-20
+ *   7. Overlay panels, diary experience — z-40+
+ *   8. NavigatorHint
  */
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
 import Image from "next/image";
 
 import MagicParticles from "./MagicParticles";
@@ -163,6 +160,30 @@ function HomeSceneInner() {
         />
       </div>
 
+      {/* ── Foreground meadow — flowers, grass, rocks at bottom edge ── */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 bottom-0 pointer-events-none"
+        style={{ zIndex: 1 }}
+      >
+        <Image
+          src="/assets/scenery/foreground-meadow.webp"
+          alt=""
+          fill={false}
+          width={1920}
+          height={540}
+          priority
+          quality={90}
+          style={{
+            width: "100%",
+            height: "auto",
+            objectFit: "cover",
+            objectPosition: "bottom center",
+            display: "block",
+          }}
+        />
+      </div>
+
       {/* ── Magic particles (float above background) ────── */}
       <MagicParticles />
 
@@ -171,6 +192,7 @@ function HomeSceneInner() {
         aria-hidden="true"
         className="absolute pointer-events-none"
         style={{
+          zIndex: 3,
           right: "3%",
           bottom: "30%",
           width: "clamp(200px, 32vw, 400px)",
@@ -184,13 +206,15 @@ function HomeSceneInner() {
             stage={treeState.stage}
           />
         ) : isLoaded ? (
-          /* No tree selected yet — show a magical seed glow placeholder */
+          /* No tree selected yet — soft static seed glow placeholder (CSS only) */
           <div className="w-full h-full flex items-end justify-center pb-4">
-            <motion.div
+            <div
               className="w-12 h-12 rounded-full"
-              style={{ background: "radial-gradient(circle, #d0b8f8 0%, #a088d0 60%, transparent 100%)" }}
-              animate={{ opacity: [0.4, 0.8, 0.4], scale: [0.9, 1.1, 0.9] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                background: "radial-gradient(circle, #d0b8f8 0%, #a088d0 60%, transparent 100%)",
+                animation: "glowPulse 3s ease-in-out infinite",
+                opacity: 0.6,
+              }}
             />
           </div>
         ) : null}
