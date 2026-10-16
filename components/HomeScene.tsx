@@ -16,6 +16,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import { signOut as signOutAction } from "@/app/auth/actions";
 
 import MagicParticles from "./MagicParticles";
 import DiaryObject from "./DiaryObject";
@@ -226,8 +227,30 @@ function HomeSceneInner() {
           <DearlyWordmark />
           <ProfileCard onOpen={() => open("profile")} />
         </div>
-        <QuickControls onOpen={handleQuickControl} />
+        <div className="flex items-center gap-2">
+          <QuickControls onOpen={handleQuickControl} />
+          {/* Sign-out — small, discreet; uses server action via form */}
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              title="Sign out"
+              aria-label="Sign out of Dearly"
+              className="
+                flex items-center justify-center w-8 h-8 rounded-xl
+                opacity-50 hover:opacity-80 transition-opacity
+                focus-visible:outline-none focus-visible:ring-2
+              "
+              style={{ color: "var(--palette-text-primary)" }}
+            >
+              <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" aria-hidden="true">
+                <path d="M13 3h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-4M9 14l4-4-4-4M13 10H3"
+                  stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </form>
+        </div>
       </header>
+
 
       {/* ── Diary — prominent foreground centre ─────────── */}
       <div

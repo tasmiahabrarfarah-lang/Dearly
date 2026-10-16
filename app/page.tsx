@@ -1,14 +1,11 @@
-import { ThemeProvider } from "@/components/ThemeContext";
-import HomeScene from "@/components/HomeScene";
+import { redirect } from "next/navigation";
 
 /**
- * Root page — wraps the scene in the ThemeProvider so palette
- * state is available to all child components.
+ * Root route — redirects to the landing page.
+ * The home scene lives at /world (auth-protected).
+ * The landing page lives at /welcome.
  */
-export default function Page() {
-  return (
-    <ThemeProvider>
-      <HomeScene />
-    </ThemeProvider>
-  );
+export default function RootPage() {
+  redirect("/welcome");
 }
+
