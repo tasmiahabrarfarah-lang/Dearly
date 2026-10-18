@@ -17,15 +17,19 @@
  *   moonlight — silver-white foliage, weeping/graceful branches, midnight-blue flowers, teardrop fruit
  *   starlight — green+gold foliage, broad rounded crown, cream flowers, apple fruit
  *   lapis     — deep-blue foliage, tall spired canopy, golden elongated flowers, crystal-drop fruit
- *   ruby      — crimson foliage, wide spreading crown, near-black flowers, green faceted fruit
+ *   ruby      — crimson foliage, wide spreading crown, near-black flowers, champagne-gold faceted fruit
  *
- * No frame-by-frame animation. Only subtle ambient glow (opacity pulse, slow).
- * Respects prefers-reduced-motion via globals.css.
+ * Illustrations are static. Supplied image assets can be enabled through treeArtwork.ts.
  */
 
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useState } from "react";
+import Image from "next/image";
 import { TreeType, GrowthStage, getTreeMeta, TreeMeta } from "@/lib/treeStorage";
+import {
+  MOONLIGHT_STAGE_IMAGE_DIMENSIONS,
+  TREE_STAGE_IMAGE_ENABLED,
+  TREE_STAGE_IMAGE_PATHS,
+} from "@/lib/treeArtwork";
 
 interface Props {
   treeType: TreeType;
@@ -104,17 +108,9 @@ function SeedStage({ p }: { p: TreeMeta["palette"] }) {
         stroke={p.foliage} strokeWidth="2.2" strokeLinecap="round" fill="none" opacity="0.82" />
       <ellipse cx="140" cy="315" rx="5.5" ry="3.5"
         fill={p.foliage} opacity="0.78" transform="rotate(-8, 140, 315)" />
-      {/* Two ambient sparkles — slow pulse, CSS-compatible opacity */}
-      <motion.circle cx="128" cy="342" r="1.6"
-        fill={p.glow} opacity="0"
-        animate={{ opacity: [0, 0.85, 0] }}
-        transition={{ duration: 3.2, repeat: Infinity, delay: 0, ease: "easeInOut" }}
-      />
-      <motion.circle cx="153" cy="346" r="1.3"
-        fill={p.glow} opacity="0"
-        animate={{ opacity: [0, 0.75, 0] }}
-        transition={{ duration: 3.8, repeat: Infinity, delay: 1.6, ease: "easeInOut" }}
-      />
+      {/* Static sparkles preserve a little magic without continuous motion. */}
+      <circle cx="128" cy="342" r="1.6" fill={p.glow} opacity="0.72" />
+      <circle cx="153" cy="346" r="1.3" fill={p.glow} opacity="0.62" />
     </g>
   );
 }
@@ -144,10 +140,8 @@ function SproutStage({ p, id }: { p: TreeMeta["palette"]; id: string }) {
         fill={`url(#leaf-b-${id})`} opacity="0.82"
         transform="rotate(28, 154, 292)" />
       {/* Ambient glow */}
-      <motion.ellipse cx="140" cy="302" rx="28" ry="24"
-        fill={p.glow} opacity="0" filter={`url(#magic-glow-${id})`}
-        animate={{ opacity: [0, 0.1, 0] }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+      <ellipse cx="140" cy="302" rx="28" ry="24"
+        fill={p.glow} opacity="0.07" filter={`url(#magic-glow-${id})`}
       />
     </g>
   );
@@ -193,10 +187,8 @@ function TeenStage({ p, id, treeType }: { p: TreeMeta["palette"]; id: string; tr
       {/* Partial canopy blob — no flowers yet */}
       <TeenCanopy id={id} treeType={treeType} />
       {/* Ambient glow */}
-      <motion.ellipse cx="130" cy="235" rx="72" ry="62"
-        fill={p.glow} opacity="0" filter={`url(#magic-glow-${id})`}
-        animate={{ opacity: [0, 0.09, 0] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.8 }}
+      <ellipse cx="130" cy="235" rx="72" ry="62"
+        fill={p.glow} opacity="0.06" filter={`url(#magic-glow-${id})`}
       />
     </g>
   );
@@ -277,30 +269,26 @@ function AdultStage({ p, id, treeType, showFruits }: {
       {/* Per-type fruit (mature only) */}
       {showFruits && <TreeFruits p={p} treeType={treeType} />}
 
-      {/* Ambient glow — slow opacity pulse, low max opacity */}
-      <motion.ellipse cx="130" cy="155"
+      {/* Static ambient glow keeps the tree calm and still. */}
+      <ellipse cx="130" cy="155"
         rx={showFruits ? 115 : 102} ry={showFruits ? 132 : 118}
-        fill={p.glow} opacity="0" filter={`url(#magic-glow-${id})`}
-        animate={{ opacity: [0, showFruits ? 0.16 : 0.1, 0] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+        fill={p.glow} opacity={showFruits ? 0.1 : 0.06} filter={`url(#magic-glow-${id})`}
       />
 
-      {/* 2-3 slow ambient particles only */}
+      {/* A few static glints add detail without animating the tree. */}
       {(showFruits
         ? [
-            { cx: 52,  cy: 195, dur: 7,   delay: 0 },
-            { cx: 216, cy: 198, dur: 8,   delay: 2.2 },
-            { cx: 126, cy: 42,  dur: 6.5, delay: 4 },
+            { cx: 52, cy: 195 },
+            { cx: 216, cy: 198 },
+            { cx: 126, cy: 42 },
           ]
         : [
-            { cx: 52,  cy: 195, dur: 7,   delay: 0 },
-            { cx: 216, cy: 198, dur: 8,   delay: 2.8 },
+            { cx: 52, cy: 195 },
+            { cx: 216, cy: 198 },
           ]
       ).map((pt, i) => (
-        <motion.circle key={i} cx={pt.cx} cy={pt.cy} r="2"
-          fill={p.glow} opacity="0"
-          animate={{ opacity: [0, 0.6, 0], cy: [pt.cy, pt.cy - 7, pt.cy] }}
-          transition={{ duration: pt.dur, repeat: Infinity, ease: "easeInOut", delay: pt.delay }}
+        <circle key={i} cx={pt.cx} cy={pt.cy} r="2"
+          fill={p.glow} opacity="0.5"
         />
       ))}
     </g>
@@ -692,7 +680,7 @@ function TreeFruits({ p, treeType }: { p: TreeMeta["palette"]; treeType: TreeTyp
       );
     }
 
-    // RUBY: faceted green fruits (pentagonal silhouette)
+    // RUBY: champagne-gold faceted fruit with a subtle silvery gleam
     case "ruby":
     default: {
       const fruits = [[108, 130], [156, 126], [78, 168], [196, 172], [130, 108]] as const;
@@ -702,12 +690,12 @@ function TreeFruits({ p, treeType }: { p: TreeMeta["palette"]; treeType: TreeTyp
             <g key={i} transform={`translate(${x}, ${y})`}>
               {/* Pentagon outline */}
               <path d="M0,-7 L6.6,-2.2 L4.1,5.7 L-4.1,5.7 L-6.6,-2.2 Z"
-                fill={p.fruit} opacity="0.9" />
+                fill={p.fruit} stroke="#eee4d0" strokeWidth="0.55" opacity="0.96" />
               {/* Facet lines */}
               <path d="M0,-7 L0,5.7 M-4.1,5.7 L4.1,5.7"
                 stroke="#ffffff" strokeWidth="0.5" opacity="0.2" />
               {/* Highlight */}
-              <ellipse cx="-1.5" cy="-2" rx="2" ry="2.5" fill="#ffffff" opacity="0.2" />
+              <ellipse cx="-1.5" cy="-2" rx="2" ry="2.5" fill="#fff8e8" opacity="0.38" />
               {/* Stem */}
               <path d="M0,-8 C0,-11 0.5,-13 0,-15"
                 stroke={p.trunk} strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.7" />
@@ -723,9 +711,40 @@ function TreeFruits({ p, treeType }: { p: TreeMeta["palette"]; treeType: TreeTyp
 // MAIN EXPORT
 // ══════════════════════════════════════════════════════════════
 export default function TreeStageIllustration({ treeType, stage }: Props) {
+  const [failedImagePath, setFailedImagePath] = useState<string | null>(null);
   const meta = getTreeMeta(treeType);
   const p = meta.palette;
   const id = treeType; // unique gradient/filter prefix
+  const imagePath = TREE_STAGE_IMAGE_PATHS[treeType][stage];
+  const useStageImage = TREE_STAGE_IMAGE_ENABLED[treeType][stage] && failedImagePath !== imagePath;
+
+  if (useStageImage && treeType === "moonlight") {
+    const dimensions = MOONLIGHT_STAGE_IMAGE_DIMENSIONS[stage];
+
+    return (
+      <div
+        role="img"
+        aria-label={`${meta.name} tree — ${stage} stage`}
+        className="relative select-none pointer-events-none"
+        style={{ width: "100%", height: "100%" }}
+      >
+        <Image
+          src={imagePath}
+          width={dimensions.width}
+          height={dimensions.height}
+          alt=""
+          sizes="(max-width: 640px) 220px, (max-width: 1280px) 38vw, 480px"
+          className="moonlight-tree-art"
+          onError={() => {
+            setFailedImagePath(imagePath);
+            if (process.env.NODE_ENV !== "production") {
+              console.error(`[Dearly] Failed to load Moonlight ${stage} artwork: ${imagePath}`);
+            }
+          }}
+        />
+      </div>
+    );
+  }
 
   const renderStage = () => {
     switch (stage) {
@@ -739,6 +758,7 @@ export default function TreeStageIllustration({ treeType, stage }: Props) {
 
   return (
     <div
+      role="img"
       aria-label={`${meta.name} tree — ${stage} stage`}
       className="relative select-none pointer-events-none"
       style={{ width: "100%", height: "100%" }}

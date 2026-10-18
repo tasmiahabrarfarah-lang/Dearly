@@ -1,6 +1,6 @@
 /**
  * app/auth/layout.tsx
- * Auth pages share the same illustrated background as /welcome.
+ * Auth pages keep the illustrated home scene behind the account forms.
  */
 import Image from "next/image";
 

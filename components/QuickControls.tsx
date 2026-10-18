@@ -13,7 +13,7 @@ import { Users, Bell, Settings, LucideIcon } from "lucide-react";
 export type QuickControlKey = "friends" | "notifications" | "settings";
 
 interface QuickControlsProps {
-  onOpen: (panel: QuickControlKey) => void;
+  onOpen: (panel: QuickControlKey, anchor: DOMRect) => void;
 }
 
 const CONTROLS: { key: QuickControlKey; label: string; Icon: LucideIcon }[] = [
@@ -35,7 +35,7 @@ export default function QuickControls({ onOpen }: QuickControlsProps) {
       {CONTROLS.map(({ key, label, Icon }) => (
         <button
           key={key}
-          onClick={() => onOpen(key)}
+          onClick={(event) => onOpen(key, event.currentTarget.getBoundingClientRect())}
           aria-label={label}
           className="
             flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl

@@ -76,9 +76,28 @@ html, body {
 /* ── Scrollable overlay panels ──────────────────────────────────────── */
 .panel-scroll {
   overflow-y: auto;
-  max-height: 70vh;
+  max-height: min(70vh, calc(100dvh - 9rem));
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--palette-accent-soft) transparent;
+}
+
+.diary-entry-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--palette-accent-soft) transparent;
+}
+
+.diary-entry-scroll::-webkit-scrollbar,
+.panel-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.diary-entry-scroll::-webkit-scrollbar-thumb,
+.panel-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--palette-accent-soft);
+  background-clip: padding-box;
 }
 
 /* ── Utility: glass surface ─────────────────────────────────────────── */
@@ -118,4 +137,185 @@ html, body {
   0%   { opacity: 0.4; }
   50%  { opacity: 0.75; }
   100% { opacity: 0.4; }
+}
+
+/* Static Moonlight stage canvases share a common transparent baseline. */
+.moonlight-tree-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ── Public welcome page ─────────────────────────────────────────────── */
+.welcome-scene {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow-x: clip;
+  overflow-y: auto;
+  background: #c9b4eb;
+  color: #3b2e5a;
+}
+
+.welcome-scenery {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.welcome-content {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+.welcome-layout {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(22px, 4vw, 48px) clamp(20px, 6vw, 88px) 22px;
+}
+
+.welcome-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: fit-content;
+  color: #fffaf4;
+  font: 600 25px/1 Georgia, serif;
+  letter-spacing: -0.04em;
+  text-shadow: 0 2px 16px rgba(65, 43, 90, 0.32);
+}
+
+.welcome-brand svg {
+  width: 20px;
+  height: 20px;
+  color: #fff1ca;
+}
+
+.welcome-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  padding: 28px 0;
+}
+
+.welcome-card {
+  width: min(100%, 465px);
+  padding: clamp(28px, 4vw, 42px);
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 28px;
+  background: rgba(255, 250, 246, 0.88);
+  box-shadow: 0 20px 65px rgba(73, 48, 104, 0.18), 0 2px 10px rgba(73, 48, 104, 0.08);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.welcome-eyebrow {
+  margin: 0 0 14px;
+  color: #8468af;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.welcome-card h1 {
+  margin: 0;
+  color: #3b2e5a;
+  font: 600 clamp(2rem, 4.1vw, 3rem)/1.13 Georgia, serif;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.welcome-description {
+  max-width: 36ch;
+  margin: 18px 0 0;
+  color: #625576;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 27px;
+}
+
+.welcome-button {
+  display: inline-flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.welcome-button:hover { transform: translateY(-1px); }
+.welcome-button:active { transform: translateY(1px) scale(0.98); }
+.welcome-button:focus-visible { outline: 3px solid #7352ad; outline-offset: 3px; }
+
+.welcome-button-primary {
+  background: #8062b4;
+  color: #fff;
+  box-shadow: 0 5px 15px rgba(105, 77, 153, 0.23);
+}
+
+.welcome-button-primary:hover { background: #70529f; }
+.welcome-button-primary:active { background: #62478e; }
+
+.welcome-button-secondary {
+  border-color: rgba(128, 98, 180, 0.34);
+  background: rgba(255, 255, 255, 0.72);
+  color: #624b87;
+}
+
+.welcome-button-secondary:hover { background: #f1eafb; }
+.welcome-button-secondary:active { background: #e9def7; }
+
+.welcome-footer {
+  align-self: center;
+  padding-top: 12px;
+  color: rgba(255, 250, 246, 0.92);
+  font-size: 0.75rem;
+  text-align: center;
+  text-shadow: 0 1px 9px rgba(58, 39, 81, 0.55);
+}
+
+@media (max-width: 640px) {
+  .welcome-layout { padding: 20px 18px 16px; }
+  .welcome-brand { font-size: 23px; }
+  .welcome-main { align-items: flex-end; padding: 24px 0 10px; }
+  .welcome-card {
+    width: 100%;
+    padding: 25px 22px 22px;
+    border-radius: 23px;
+    background: rgba(255, 250, 246, 0.94);
+  }
+  .welcome-eyebrow { margin-bottom: 10px; font-size: 0.68rem; }
+  .welcome-card h1 { font-size: clamp(1.9rem, 9vw, 2.45rem); }
+  .welcome-description { margin-top: 13px; font-size: 0.94rem; line-height: 1.55; }
+  .welcome-actions { display: grid; grid-template-columns: 1fr 0.62fr; gap: 9px; margin-top: 20px; }
+  .welcome-button { min-height: 50px; padding: 0 12px; font-size: 0.82rem; }
+  .welcome-footer { font-size: 0.69rem; }
+}
+
+@media (max-width: 360px) {
+  .welcome-actions { grid-template-columns: 1fr; }
 }

@@ -101,7 +101,7 @@ function DiaryShell({ onClose }: { onClose: () => void }) {
         <AnimatePresence mode="wait">
           <motion.div
             key={view.type + (view.type !== "list" ? view.entryId : "")}
-            className="h-full"
+            className="h-full min-h-0"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}

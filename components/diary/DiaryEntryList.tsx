@@ -35,7 +35,7 @@ export default function DiaryEntryList() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* ── Header ──────────────────────────────────────── */}
       <div
         className="flex items-center justify-between pb-4 mb-4"
@@ -125,7 +125,7 @@ export default function DiaryEntryList() {
       )}
 
       {/* ── Entry list ───────────────────────────────────── */}
-      <div className="flex flex-col gap-3 overflow-y-auto flex-1 pr-1">
+      <div className="diary-entry-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain pr-2">
         <AnimatePresence initial={false}>
           {sorted.map((entry) => (
             <motion.div
@@ -135,7 +135,7 @@ export default function DiaryEntryList() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.25 }}
-              className="group relative rounded-2xl overflow-hidden"
+              className="group relative shrink-0 rounded-2xl overflow-hidden"
               style={{
                 background: entry.pageColor,
                 border: "1px solid var(--palette-surface-border)",

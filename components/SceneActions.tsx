@@ -13,7 +13,7 @@ import { Compass, BookOpen, Sparkles, LucideIcon } from "lucide-react";
 export type SceneActionKey = "explore" | "diary" | "world";
 
 interface SceneActionsProps {
-  onAction: (action: SceneActionKey) => void;
+  onAction: (action: SceneActionKey, anchor: DOMRect) => void;
 }
 
 const ACTIONS: {
@@ -40,7 +40,7 @@ export default function SceneActions({ onAction }: SceneActionsProps) {
       {ACTIONS.map(({ key, label, Icon, primary }) => (
         <button
           key={key}
-          onClick={() => onAction(key)}
+          onClick={(event) => onAction(key, event.currentTarget.getBoundingClientRect())}
           className={`
             flex items-center gap-2
             px-4 py-2.5 rounded-2xl

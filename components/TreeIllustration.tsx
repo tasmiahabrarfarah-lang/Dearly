@@ -11,7 +11,6 @@
  */
 
 import React from "react";
-import { motion } from "framer-motion";
 
 export default function TreeIllustration() {
   return (
@@ -192,12 +191,7 @@ export default function TreeIllustration() {
         {/* ── LEAF CLUSTERS (canopy) ───────────────────── */}
         {/* Drawn as organic blobs — not circles, using path for silhouette */}
 
-        {/* The entire canopy sways gently together */}
-        <motion.g
-          style={{ transformOrigin: "130px 185px" }}
-          animate={{ rotate: [-1.2, 1.2, -1.2] }}
-          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-        >
+        <g>
           {/* ── CLUSTER 1 — Main centre-top ── */}
           <path
             d="
@@ -392,35 +386,31 @@ export default function TreeIllustration() {
           ))}
 
           {/* ── MAGICAL GLOW — restrained ambient shimmer ── */}
-          <motion.ellipse
+          <ellipse
             cx="130" cy="150"
             rx="105" ry="120"
             fill="#b8d4f8"
-            opacity="0"
+            opacity="0.08"
             filter="url(#magic-glow)"
-            animate={{ opacity: [0, 0.12, 0] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
           />
 
-          {/* ── MAGICAL PARTICLES — 6 small light orbs near tips ── */}
+          {/* ── MAGICAL PARTICLES — static light orbs near tips ── */}
           {[
-            { cx: 50, cy: 194, dur: 5.5, delay: 0 },
-            { cx: 218, cy: 196, dur: 6,   delay: 1 },
-            { cx: 120, cy: 44, dur: 4.5,  delay: 2 },
-            { cx: 186, cy: 70, dur: 7,    delay: 0.5 },
-            { cx: 74,  cy: 76, dur: 5,    delay: 3 },
-            { cx: 208, cy: 230, dur: 6.5, delay: 1.5 },
+            { cx: 50, cy: 194 },
+            { cx: 218, cy: 196 },
+            { cx: 120, cy: 44 },
+            { cx: 186, cy: 70 },
+            { cx: 74, cy: 76 },
+            { cx: 208, cy: 230 },
           ].map((p, i) => (
-            <motion.circle
+            <circle
               key={i}
               cx={p.cx} cy={p.cy} r="2.2"
               fill="#c8e0f8"
-              opacity="0"
-              animate={{ opacity: [0, 0.7, 0], cy: [p.cy, p.cy - 8, p.cy] }}
-              transition={{ duration: p.dur, repeat: Infinity, ease: "easeInOut", delay: p.delay }}
+              opacity="0.55"
             />
           ))}
-        </motion.g>
+        </g>
       </svg>
     </div>
   );

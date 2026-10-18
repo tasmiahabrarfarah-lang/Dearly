@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 
 interface ProfileCardProps {
-  onOpen: () => void;
+  onOpen: (anchor: DOMRect) => void;
 }
 
 // Simple SVG fantasy fox/spirit avatar
@@ -82,7 +82,7 @@ function AvatarIllustration() {
 export default function ProfileCard({ onOpen }: ProfileCardProps) {
   return (
     <motion.button
-      onClick={onOpen}
+      onClick={(event) => onOpen(event.currentTarget.getBoundingClientRect())}
       aria-label="Open profile — Little Wanderer"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}

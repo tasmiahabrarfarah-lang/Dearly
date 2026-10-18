@@ -106,7 +106,7 @@ export const TREE_TYPES: TreeMeta[] = [
       trunk:   "#6a3828",   // chestnut-brown trunk
       foliage: "#c83838",   // true crimson foliage
       flower:  "#1a0808",   // near-black dark rosette
-      fruit:   "#3a7028",   // deep forest-green fruit
+      fruit:   "#c9a45c",   // champagne-gold fruit with a warm silver sheen
       glow:    "#f07060",   // warm ember-orange glow
       ground:  "#b03030",   // deep red ground pool
     },

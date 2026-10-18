@@ -7,10 +7,9 @@
  *   1. Background artwork (home-background.webp) — z-0
  *   2. Foreground meadow overlay (foreground-meadow.webp) — z-1, transparent centre
  *   3. Magic particles — z-2
- *   4. Tree (right-of-centre) — z-3
- *   5. Diary object (foreground centre) — z-10
- *   6. UI chrome: header, footer — z-20
- *   7. Overlay panels, diary experience — z-40+
+ *   4. Diary object (foreground centre) — z-10
+ *   5. UI chrome: header, footer — z-20
+ *   6. Overlay panels, diary experience — z-40+
  *   8. NavigatorHint
  */
 
@@ -29,7 +28,6 @@ import NavigatorHint from "./NavigatorHint";
 import DiaryExperience from "./diary/DiaryExperience";
 
 import { TreeProvider, useTree } from "./tree/TreeContext";
-import TreeStageIllustration from "./tree/TreeStageIllustration";
 import SeedSelectionModal from "./tree/SeedSelectionModal";
 
 import {
@@ -93,21 +91,25 @@ function HomeSceneInner() {
 
   // All other panels stay in OverlayPanel
   const [activePanel, setActivePanel] = useState<Exclude<ActivePanel, "diary">>(null);
+  const [panelAnchor, setPanelAnchor] = useState<DOMRect | null>(null);
 
   const openDiary = () => setDiaryOpen(true);
   const closeDiary = () => setDiaryOpen(false);
 
-  const open = (panel: Exclude<ActivePanel, "diary">) => setActivePanel(panel);
+  const open = (panel: Exclude<ActivePanel, "diary">, anchor: DOMRect) => {
+    setPanelAnchor(anchor);
+    setActivePanel(panel);
+  };
   const close = () => setActivePanel(null);
 
-  const handleSceneAction = (action: SceneActionKey) => {
+  const handleSceneAction = (action: SceneActionKey, anchor: DOMRect) => {
     if (action === "diary")   openDiary();
-    if (action === "explore") open("explore");
-    if (action === "world")   open("world");
+    if (action === "explore") open("explore", anchor);
+    if (action === "world")   open("world", anchor);
   };
 
-  const handleQuickControl = (key: QuickControlKey) => {
-    open(key as Exclude<ActivePanel, "diary">);
+  const handleQuickControl = (key: QuickControlKey, anchor: DOMRect) => {
+    open(key as Exclude<ActivePanel, "diary">, anchor);
   };
 
   const renderPanelContent = () => {
@@ -188,44 +190,11 @@ function HomeSceneInner() {
       {/* ── Magic particles (float above background) ────── */}
       <MagicParticles />
 
-      {/* ── Tree (right side) — stage-aware illustration ── */}
-      <div
-        aria-hidden="true"
-        className="absolute pointer-events-none"
-        style={{
-          zIndex: 3,
-          right: "3%",
-          bottom: "30%",
-          width: "clamp(200px, 32vw, 400px)",
-          height: "clamp(260px, 48vh, 530px)",
-        }}
-      >
-        {/* Show tree only once treeType is loaded+selected; fallback to seed placeholder */}
-        {isLoaded && treeState.treeType ? (
-          <TreeStageIllustration
-            treeType={treeState.treeType}
-            stage={treeState.stage}
-          />
-        ) : isLoaded ? (
-          /* No tree selected yet — soft static seed glow placeholder (CSS only) */
-          <div className="w-full h-full flex items-end justify-center pb-4">
-            <div
-              className="w-12 h-12 rounded-full"
-              style={{
-                background: "radial-gradient(circle, #d0b8f8 0%, #a088d0 60%, transparent 100%)",
-                animation: "glowPulse 3s ease-in-out infinite",
-                opacity: 0.6,
-              }}
-            />
-          </div>
-        ) : null}
-      </div>
-
       {/* ── UI Chrome — top bar ────────────────────────── */}
       <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-4 sm:px-6 sm:pt-5">
         <div className="flex items-center gap-3 flex-wrap">
           <DearlyWordmark />
-          <ProfileCard onOpen={() => open("profile")} />
+          <ProfileCard onOpen={(anchor) => open("profile", anchor)} />
         </div>
         <div className="flex items-center gap-2">
           <QuickControls onOpen={handleQuickControl} />
@@ -257,7 +226,7 @@ function HomeSceneInner() {
         className="absolute z-10"
         style={{
           left: "50%",
-          transform: "translateX(-60%)",
+          transform: "translateX(-50%)",
           bottom: "clamp(75px, 14%, 130px)",
         }}
       >
@@ -278,6 +247,7 @@ function HomeSceneInner() {
         onClose={close}
         title={activePanel ? panelTitles[activePanel as Exclude<ActivePanel, "diary" | null>] : ""}
         maxWidth={activePanel === "settings" ? "max-w-sm" : "max-w-md"}
+        anchorRect={panelAnchor}
       >
         {renderPanelContent()}
       </OverlayPanel>
