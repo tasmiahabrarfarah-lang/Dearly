@@ -12,6 +12,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, PenLine } from "lucide-react";
 import { useDiary } from "./DiaryContext";
 import { formatDate } from "@/lib/diaryStorage";
+import { AudienceBadge } from "./AudienceControl";
 
 interface Props {
   entryId: string;
@@ -57,6 +58,11 @@ export default function DiaryEntryView({ entryId }: Props) {
           <ArrowLeft size={15} aria-hidden />
           <span>Back to Entries</span>
         </button>
+
+        {/* Audience indicator — centred between the two action buttons */}
+        <div className="flex-1 flex justify-center px-2">
+          <AudienceBadge audience={entry.audience ?? "only_me"} />
+        </div>
 
         <button
           onClick={() => openEditor(entry.id)}

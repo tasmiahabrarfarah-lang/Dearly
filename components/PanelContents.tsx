@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * PanelContents — placeholder panel bodies for non-diary panels.
- * The diary is fully implemented in components/diary/.
+ * PanelContents — panel bodies for non-diary panels.
+ * Friends panel is now fully implemented in components/friends/.
+ * Other panels remain as placeholders for future milestones.
  */
 
 import React from "react";
-import { Users, Bell, Compass, Sparkles, User } from "lucide-react";
+import { Bell, Compass, Sparkles } from "lucide-react";
 import { useTheme, PALETTES, PaletteId } from "./ThemeContext";
 
 /* ── Shared helpers ──────────────────────────────────────────────────── */
@@ -48,30 +49,7 @@ function MilestoneChip({ label }: { label: string }) {
 
 
 /* ── Friends Panel ───────────────────────────────────────────────────── */
-export function FriendsPanelContent() {
-  return (
-    <div className="flex flex-col items-center text-center gap-4 py-2">
-      <div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center"
-        style={{ background: "var(--palette-ground)" }}
-      >
-        <Users size={28} style={{ color: "var(--palette-accent)" }} aria-hidden="true" />
-      </div>
-      <div>
-        <h3
-          className="text-base font-semibold mb-2"
-          style={{ color: "var(--palette-text-primary)" }}
-        >
-          Friends & Connections
-        </h3>
-        <Note>
-          Friend search, requests, and visiting each other&apos;s little worlds will be built in a later milestone. For now, your world is peacefully just yours.
-        </Note>
-      </div>
-      <MilestoneChip label="✦ Coming in a later milestone" />
-    </div>
-  );
-}
+export { default as FriendsPanelContent } from "./friends/FriendsPanelContent";
 
 /* ── Notifications Panel ─────────────────────────────────────────────── */
 export function NotificationsPanelContent() {
@@ -177,46 +155,7 @@ export function SettingsPanelContent() {
 }
 
 /* ── Profile Panel ───────────────────────────────────────────────────── */
-export function ProfilePanelContent() {
-  return (
-    <div className="flex flex-col gap-5 py-1">
-      <div className="flex items-center gap-4">
-        {/* Large avatar */}
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "var(--palette-ground)" }}
-        >
-          <User size={32} style={{ color: "var(--palette-accent)" }} aria-hidden="true" />
-        </div>
-        <div>
-          <p
-            className="text-base font-semibold"
-            style={{ color: "var(--palette-text-primary)" }}
-          >
-            Little Wanderer
-          </p>
-          <p
-            className="text-xs mt-1"
-            style={{ color: "var(--palette-text-muted)" }}
-          >
-            Joined Dearly · Milestone 1 Preview
-          </p>
-        </div>
-      </div>
-
-      <SectionLabel>About</SectionLabel>
-      <Note>
-        A quiet soul who finds magic in small, everyday moments. Loves tea, soft light, and the feeling of a fresh page.
-      </Note>
-
-      <SectionLabel>Profile features</SectionLabel>
-      <Note>
-        A full profile with a bio, customisable avatar, and journal overview will be built in a future milestone.
-      </Note>
-      <MilestoneChip label="✦ Profile editing coming later" />
-    </div>
-  );
-}
+export { default as ProfilePanelContent } from "./profile/ProfileEditor";
 
 /* ── Explore Panel ───────────────────────────────────────────────────── */
 export function ExplorePanelContent() {

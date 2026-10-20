@@ -13,7 +13,7 @@
  *   8. NavigatorHint
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { signOut as signOutAction } from "@/app/auth/actions";
 
@@ -39,6 +39,8 @@ import {
   ExplorePanelContent,
   WorldPanelContent,
 } from "./PanelContents";
+
+import { createClient } from "@/lib/supabase/client";
 
 /* ─── Panel state type ──────────────────────────────────────────────── */
 type ActivePanel =
@@ -95,6 +97,30 @@ function HomeSceneInner() {
   const [activePanel, setActivePanel] = useState<Exclude<ActivePanel, "diary">>(null);
   const [panelAnchor, setPanelAnchor] = useState<DOMRect | null>(null);
 
+  // Pending friend request count — shown as badge on the Friends button
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { count } = await supabase
+        .from("friendships")
+        .select("id", { count: "exact", head: true })
+        .eq("addressee_id", user.id)
+        .eq("status", "pending");
+      setPendingCount(count ?? 0);
+    } catch {
+      // Non-critical — silently ignore (table may not exist yet before migration)
+    }
+  }, []);
+
+  // Fetch on mount
+  useEffect(() => {
+    void fetchPendingCount();
+  }, [fetchPendingCount]);
+
   const openDiary = () => setDiaryOpen(true);
   const closeDiary = () => setDiaryOpen(false);
 
@@ -102,7 +128,11 @@ function HomeSceneInner() {
     setPanelAnchor(anchor);
     setActivePanel(panel);
   };
-  const close = () => setActivePanel(null);
+  const close = () => {
+    setActivePanel(null);
+    // Refresh pending count whenever the Friends panel is closed
+    void fetchPendingCount();
+  };
 
   const handleSceneAction = (action: SceneActionKey, anchor: DOMRect) => {
     if (action === "diary")   openDiary();
@@ -170,23 +200,20 @@ function HomeSceneInner() {
       {/* ── Foreground meadow — flowers, grass, rocks at bottom edge ── */}
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 pointer-events-none"
+        className={`absolute pointer-events-none ${palette.id === "morning-sky" ? "inset-x-0 bottom-[-14px]" : "inset-x-0 bottom-0"}`}
         style={{ zIndex: 1 }}
       >
         <Image
           src={palette.foreground}
           alt=""
-          fill={false}
           width={palette.id === "morning-sky" ? 1870 : 1920}
           height={palette.id === "morning-sky" ? 841 : 540}
           priority
           quality={90}
           style={{
-            width: "100%",
-            height: "auto",
-            objectFit: "contain",
-            objectPosition: "bottom center",
-            display: "block",
+            ...(palette.id === "morning-sky"
+              ? { width: "102vw", maxWidth: "none", height: "auto", objectFit: "contain", objectPosition: "bottom center", display: "block", transform: "translateX(-1vw)" }
+              : { width: "100%", height: "auto", objectFit: "contain", objectPosition: "bottom center", display: "block" }),
           }}
         />
       </div>
@@ -201,7 +228,7 @@ function HomeSceneInner() {
           <ProfileCard onOpen={(anchor) => open("profile", anchor)} />
         </div>
         <div className="flex items-center gap-2">
-          <QuickControls onOpen={handleQuickControl} />
+          <QuickControls onOpen={handleQuickControl} pendingCount={pendingCount} />
           {/* Sign-out — small, discreet; uses server action via form */}
           <form action={signOutAction}>
             <button

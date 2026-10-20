@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PenLine, Trash2, BookOpen, Plus } from "lucide-react";
 import { useDiary } from "./DiaryContext";
 import { formatDateShort } from "@/lib/diaryStorage";
+import { AudienceBadge } from "./AudienceControl";
 
 export default function DiaryEntryList() {
   const { state, openEditor, openReader, removeEntry } =
@@ -165,6 +166,24 @@ export default function DiaryEntryList() {
                   {formatDateShort(entry.createdAt)}
                   {entry.updatedAt !== entry.createdAt && " · edited"}
                 </p>
+                {/* Audience badge — shown only for non-default audiences so private entries feel uncluttered */}
+                {entry.audience && entry.audience !== "only_me" && (
+                  <div className="mb-2">
+                    <AudienceBadge audience={entry.audience} />
+                  </div>
+                )}
+                {/* Lock icon for private entries — subtle, not alarming */}
+                {(!entry.audience || entry.audience === "only_me") && (
+                  <div className="mb-2">
+                    <span
+                      className="inline-flex items-center gap-1 text-xs"
+                      style={{ color: "var(--palette-text-muted)", opacity: 0.6 }}
+                      aria-label="Private entry"
+                    >
+                      🔒
+                    </span>
+                  </div>
+                )}
                 {entry.body && (
                   <p
                     className="text-xs leading-relaxed line-clamp-2"

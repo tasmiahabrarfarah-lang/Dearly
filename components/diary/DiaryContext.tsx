@@ -167,6 +167,10 @@ export function DiaryProvider({
       pageColor: DEFAULT_PAGE_COLOR,
       fontFamily: DEFAULT_FONT,
       fontSize: DEFAULT_FONT_SIZE,
+      // Privacy: every new entry defaults to "only_me"
+      audience: "only_me",
+      allowedFriendIds: [],
+      excludedFriendIds: [],
     };
   }, []);
 

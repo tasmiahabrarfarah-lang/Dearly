@@ -5,6 +5,29 @@
  * All access is guarded for SSR safety.
  */
 
+// ── Privacy / Audience ────────────────────────────────────────────────────
+/**
+ * Who can read this diary entry.
+ *
+ *  "only_me"           — private to the author only (DEFAULT)
+ *  "selected_friends"  — only explicitly listed accepted friends
+ *  "all_friends"       — every accepted friend of the author
+ *  "all_friends_except"— all accepted friends except specifically excluded ones
+ *
+ * NOTE (Diary Privacy v1.0):
+ *   Friend-based options ("selected_friends", "all_friends", "all_friends_except")
+ *   are stored and displayed in the UI but CANNOT be backend-enforced until:
+ *     (a) diary entries are migrated from localStorage to a Supabase table, AND
+ *     (b) the friend system milestone is complete.
+ *   Until then, only "only_me" provides meaningful isolation.
+ *   The UI clearly communicates this limitation.
+ */
+export type DiaryAudience =
+  | "only_me"
+  | "selected_friends"
+  | "all_friends"
+  | "all_friends_except";
+
 export interface DiaryEntry {
   id: string;
   title: string;
@@ -14,9 +37,91 @@ export interface DiaryEntry {
   pageColor: string;   // hex or CSS color name
   fontFamily: string;  // CSS font-family value
   fontSize: number;    // px, e.g. 15
+  /**
+   * Who can read this entry. Defaults to "only_me" for every new entry.
+   * Missing or invalid values are treated as "only_me" (never broader access).
+   */
+  audience: DiaryAudience;
+  /**
+   * Friend user IDs allowed to read this entry when audience === "selected_friends".
+   * Populated by the friend-system milestone; empty array is safe default.
+   */
+  allowedFriendIds: string[];
+  /**
+   * Friend user IDs excluded from reading when audience === "all_friends_except".
+   * Populated by the friend-system milestone; empty array is safe default.
+   */
+  excludedFriendIds: string[];
 }
 
 const STORAGE_KEY = "dearly:diary:v1";
+
+/** Valid audience values — used for validation */
+const VALID_AUDIENCES: DiaryAudience[] = [
+  "only_me",
+  "selected_friends",
+  "all_friends",
+  "all_friends_except",
+];
+
+// ── Default customization values ──────────────────────────────────────────
+// Defined here (before normalizeEntry) so defaults can be used in normalization.
+export const PAGE_COLORS: { label: string; value: string }[] = [
+  { label: "Warm Cream",   value: "#fdf6ec" },
+  { label: "Soft Ivory",   value: "#faf5e4" },
+  { label: "Pale Lavender",value: "#f0ebfa" },
+  { label: "Dusty Blue",   value: "#eaf2f8" },
+  { label: "Soft Blush",   value: "#fdf0f0" },
+];
+
+export const FONT_OPTIONS: { label: string; value: string }[] = [
+  { label: "Nunito Sans",  value: "var(--font-nunito), sans-serif" },
+  { label: "Lora (Serif)", value: "var(--font-lora), Georgia, serif" },
+  { label: "Caveat (Hand)",value: "var(--font-caveat), cursive" },
+];
+
+export const FONT_SIZES: { label: string; value: number }[] = [
+  { label: "Small",   value: 14 },
+  { label: "Medium",  value: 16 },
+  { label: "Large",   value: 18 },
+  { label: "X-Large", value: 20 },
+];
+
+export const DEFAULT_PAGE_COLOR = PAGE_COLORS[0].value;
+export const DEFAULT_FONT       = "var(--font-nunito), sans-serif";
+export const DEFAULT_FONT_SIZE  = 16;
+
+/**
+ * Normalize a raw parsed object into a valid DiaryEntry.
+ * - Missing or invalid `audience` → "only_me" (never grants broader access).
+ * - Missing `allowedFriendIds`/`excludedFriendIds` → empty arrays.
+ * This is the migration path for entries created before Diary Privacy v1.0.
+ */
+function normalizeEntry(e: Record<string, unknown>): DiaryEntry {
+  const audience: DiaryAudience =
+    typeof e.audience === "string" &&
+    VALID_AUDIENCES.includes(e.audience as DiaryAudience)
+      ? (e.audience as DiaryAudience)
+      : "only_me";
+
+  return {
+    id: e.id as string,
+    title: typeof e.title === "string" ? e.title : "",
+    body: e.body as string,
+    createdAt: e.createdAt as string,
+    updatedAt: typeof e.updatedAt === "string" ? e.updatedAt : (e.createdAt as string),
+    pageColor: typeof e.pageColor === "string" ? e.pageColor : DEFAULT_PAGE_COLOR,
+    fontFamily: typeof e.fontFamily === "string" ? e.fontFamily : DEFAULT_FONT,
+    fontSize: typeof e.fontSize === "number" ? e.fontSize : DEFAULT_FONT_SIZE,
+    audience,
+    allowedFriendIds: Array.isArray(e.allowedFriendIds)
+      ? (e.allowedFriendIds as string[]).filter((s) => typeof s === "string")
+      : [],
+    excludedFriendIds: Array.isArray(e.excludedFriendIds)
+      ? (e.excludedFriendIds as string[]).filter((s) => typeof s === "string")
+      : [],
+  };
+}
 
 /** Safely read entries from localStorage. Returns [] on any failure. */
 export function loadEntries(): DiaryEntry[] {
@@ -26,14 +131,16 @@ export function loadEntries(): DiaryEntry[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    // Validate minimal shape
-    return parsed.filter(
-      (e) =>
-        e &&
-        typeof e.id === "string" &&
-        typeof e.body === "string" &&
-        typeof e.createdAt === "string"
-    );
+    // Validate minimal shape then normalize (handles pre-privacy entries)
+    return parsed
+      .filter(
+        (e) =>
+          e &&
+          typeof e.id === "string" &&
+          typeof e.body === "string" &&
+          typeof e.createdAt === "string"
+      )
+      .map((e) => normalizeEntry(e as Record<string, unknown>));
   } catch {
     return [];
   }
@@ -101,28 +208,49 @@ export function formatDateShort(iso: string): string {
   }
 }
 
-// ── Default customization values ──────────────────────────────────────────
-export const PAGE_COLORS: { label: string; value: string }[] = [
-  { label: "Warm Cream",   value: "#fdf6ec" },
-  { label: "Soft Ivory",   value: "#faf5e4" },
-  { label: "Pale Lavender",value: "#f0ebfa" },
-  { label: "Dusty Blue",   value: "#eaf2f8" },
-  { label: "Soft Blush",   value: "#fdf0f0" },
-];
+// ── Audience options metadata ──────────────────────────────────────────────
+export interface AudienceOption {
+  value: DiaryAudience;
+  /** Short label shown on buttons and badges */
+  label: string;
+  /** Icon character or emoji */
+  icon: string;
+  /** One-line description shown in the picker */
+  description: string;
+  /**
+   * When true, this option requires the friend system milestone to be complete
+   * before backend enforcement is possible. The UI shows a "coming soon" note.
+   */
+  requiresFriendSystem: boolean;
+}
 
-export const FONT_OPTIONS: { label: string; value: string }[] = [
-  { label: "Nunito Sans",  value: "var(--font-nunito), sans-serif" },
-  { label: "Lora (Serif)", value: "var(--font-lora), Georgia, serif" },
-  { label: "Caveat (Hand)",value: "var(--font-caveat), cursive" },
+export const AUDIENCE_OPTIONS: AudienceOption[] = [
+  {
+    value: "only_me",
+    label: "Only Me",
+    icon: "🔒",
+    description: "Only you can read this memory.",
+    requiresFriendSystem: false,
+  },
+  {
+    value: "all_friends",
+    label: "All My Friends",
+    icon: "👥",
+    description: "Everyone on your friends list can read this entry.",
+    requiresFriendSystem: true,
+  },
+  {
+    value: "selected_friends",
+    label: "Selected Friends",
+    icon: "🤝",
+    description: "Choose the friends who can read this entry.",
+    requiresFriendSystem: true,
+  },
+  {
+    value: "all_friends_except",
+    label: "All My Friends Except…",
+    icon: "🚫",
+    description: "Share with your friends, excluding selected people.",
+    requiresFriendSystem: true,
+  },
 ];
-
-export const FONT_SIZES: { label: string; value: number }[] = [
-  { label: "Small",   value: 14 },
-  { label: "Medium",  value: 16 },
-  { label: "Large",   value: 18 },
-  { label: "X-Large", value: 20 },
-];
-
-export const DEFAULT_PAGE_COLOR = PAGE_COLORS[0].value;
-export const DEFAULT_FONT       = "var(--font-nunito), sans-serif";
-export const DEFAULT_FONT_SIZE  = 16;

@@ -16,11 +16,13 @@ import { ArrowLeft, Save, Check, AlertCircle } from "lucide-react";
 import { useDiary } from "./DiaryContext";
 import {
   DiaryEntry,
+  DiaryAudience,
   PAGE_COLORS,
   FONT_OPTIONS,
   FONT_SIZES,
   formatDate,
 } from "@/lib/diaryStorage";
+import AudienceControl from "./AudienceControl";
 
 interface Props {
   entryId: string | null; // null = new entry
@@ -335,6 +337,14 @@ function DiaryCustomizationSidebar({ draft, update, compact }: SidebarProps) {
           : "flex flex-col gap-5"
       }
     >
+      {/* ── Audience / Privacy ─── */}
+      <div className={compact ? "w-full" : undefined}>
+        <AudienceControl
+          audience={draft.audience}
+          onChange={(value: DiaryAudience) => update("audience", value)}
+        />
+      </div>
+
       {/* ── Page color ─── */}
       <div>
         <p
