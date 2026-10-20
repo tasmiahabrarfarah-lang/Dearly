@@ -26,6 +26,7 @@ import OverlayPanel from "./OverlayPanel";
 import NavigatorHint from "./NavigatorHint";
 
 import DiaryExperience from "./diary/DiaryExperience";
+import { useTheme } from "./ThemeContext";
 
 import { TreeProvider, useTree } from "./tree/TreeContext";
 import SeedSelectionModal from "./tree/SeedSelectionModal";
@@ -85,6 +86,7 @@ function DearlyWordmark() {
 /* ─── HomeSceneInner (consumes TreeContext) ─────────────────────────── */
 function HomeSceneInner() {
   const { treeState, isLoaded, awardGrowth } = useTree();
+  const { palette } = useTheme();
 
   // Diary has its own full-screen experience
   const [diaryOpen, setDiaryOpen] = useState(false);
@@ -143,24 +145,26 @@ function HomeSceneInner() {
         className="absolute inset-0 z-0 pointer-events-none"
       >
         <Image
-          src="/assets/scenery/home-background.webp"
+          src={palette.background}
           alt=""
           fill
           priority
           quality={95}
           style={{
             objectFit: "cover",
-            objectPosition: "center 38%",
+            objectPosition: palette.id === "morning-sky" ? "center 50%" : "center 38%",
           }}
         />
         {/* Subtle bottom vignette — lifts foreground elements without washing out the sky */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to top, rgba(60,30,80,0.35) 0%, rgba(60,30,80,0.10) 28%, transparent 55%)",
-          }}
-        />
+        {palette.id === "dreamy-lavender" && (
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(to top, rgba(60,30,80,0.35) 0%, rgba(60,30,80,0.10) 28%, transparent 55%)",
+            }}
+          />
+        )}
       </div>
 
       {/* ── Foreground meadow — flowers, grass, rocks at bottom edge ── */}
@@ -170,17 +174,17 @@ function HomeSceneInner() {
         style={{ zIndex: 1 }}
       >
         <Image
-          src="/assets/scenery/foreground-meadow.webp"
+          src={palette.foreground}
           alt=""
           fill={false}
-          width={1920}
-          height={540}
+          width={palette.id === "morning-sky" ? 1870 : 1920}
+          height={palette.id === "morning-sky" ? 841 : 540}
           priority
           quality={90}
           style={{
             width: "100%",
             height: "auto",
-            objectFit: "cover",
+            objectFit: "contain",
             objectPosition: "bottom center",
             display: "block",
           }}

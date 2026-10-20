@@ -101,7 +101,7 @@ export function NotificationsPanelContent() {
 
 /* ── Settings Panel ──────────────────────────────────────────────────── */
 export function SettingsPanelContent() {
-  const { palette, setPalette } = useTheme();
+  const { palette, setPalette, saving, saveError } = useTheme();
 
   return (
     <div className="flex flex-col gap-5 py-1">
@@ -114,6 +114,7 @@ export function SettingsPanelContent() {
             <button
               key={p.id}
               onClick={() => setPalette(p.id as PaletteId)}
+              disabled={saving}
               aria-pressed={active}
               className="
                 flex items-center gap-3 w-full text-left
@@ -162,6 +163,9 @@ export function SettingsPanelContent() {
           );
         })}
       </div>
+
+      {saving && <p role="status" className="text-xs" style={{ color: "var(--palette-text-muted)" }}>Saving your theme…</p>}
+      {saveError && <p role="alert" className="text-xs" style={{ color: "#b4233d" }}>{saveError}</p>}
 
       <SectionLabel>More settings</SectionLabel>
       <Note>

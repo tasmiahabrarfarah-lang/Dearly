@@ -7,7 +7,9 @@
 import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
 import { signUp } from "@/app/auth/actions";
+import { PALETTES, PaletteId } from "@/components/ThemeContext";
 import AuthCard, {
   Field,
   SubmitButton,
@@ -23,6 +25,7 @@ export default function RegisterPage() {
   const [showPw, setShowPw]     = useState(false);
   const [showCpw, setShowCpw]   = useState(false);
   const [pwError, setPwError]   = useState<string | null>(null);
+  const [palette, setPalette] = useState<PaletteId>("dreamy-lavender");
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -98,8 +101,8 @@ export default function RegisterPage() {
       </div>
 
       <AuthCard
-        title="Begin Your Journey"
-        subtitle="Create your Dearly account."
+        title="Choose your little world's atmosphere"
+        subtitle="Every little world has its own feeling. Choose the one that feels like home to you."
         accent={
           <svg viewBox="0 0 22 22" fill="none" className="w-7 h-7" aria-hidden="true">
             <path d="M11 1.5 L12.8 8 L19.5 8 L14 12 L16.2 18.5 L11 14.8 L5.8 18.5 L8 12 L2.5 8 L9.2 8 Z"
@@ -109,6 +112,48 @@ export default function RegisterPage() {
       >
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           {error && <ErrorBanner message={error} />}
+
+          <fieldset className="flex flex-col gap-2" aria-describedby="theme-note">
+            <legend className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "#6b5b8a" }}>
+              Choose a theme
+            </legend>
+            <div className="grid grid-cols-2 gap-2.5">
+              {PALETTES.map((option) => {
+                const selected = palette === option.id;
+                return (
+                  <label key={option.id} className="relative min-w-0 cursor-pointer rounded-2xl focus-within:ring-2 focus-within:ring-offset-2" style={{ "--tw-ring-color": "#8062b4" } as React.CSSProperties}>
+                    <input
+                      className="peer sr-only"
+                      type="radio"
+                      name="palette"
+                      value={option.id}
+                      checked={selected}
+                      onChange={() => setPalette(option.id)}
+                    />
+                    <span
+                      className="block overflow-hidden rounded-2xl transition-shadow"
+                      style={{ border: `2px solid ${selected ? "#8062b4" : "rgba(120,100,150,0.22)"}`, boxShadow: selected ? "0 0 0 2px rgba(128,98,180,0.2)" : "none" }}
+                    >
+                      <span className="relative block aspect-[1.8] overflow-hidden bg-slate-100" aria-hidden="true">
+                        <Image src={option.background} alt="" fill sizes="(max-width: 640px) 45vw, 180px" style={{ objectFit: "cover", objectPosition: "center 48%" }} />
+                        <Image src={option.foreground} alt="" width={option.id === "morning-sky" ? 1870 : 1920} height={option.id === "morning-sky" ? 841 : 540} sizes="(max-width: 640px) 45vw, 180px" className="absolute bottom-0 left-0 w-full h-auto" />
+                      </span>
+                      <span className="flex items-start gap-2 px-2.5 py-2.5 text-left" style={{ background: "rgba(255,255,255,0.88)", color: "#3b2e5a" }}>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-xs font-semibold leading-tight">{option.label}</span>
+                          <span className="mt-1 block text-[10px] leading-snug" style={{ color: "#6b5b8a" }}>{option.description}</span>
+                        </span>
+                        {selected && <span className="flex-shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ background: "#8062b4", color: "white" }}>Selected</span>}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <p id="theme-note" className="rounded-xl px-3 py-2 text-xs text-center font-medium" style={{ background: "rgba(128,98,180,0.1)", color: "#59427e" }}>
+              You can change your theme anytime in Settings.
+            </p>
+          </fieldset>
 
           <Field
             label="Email address"

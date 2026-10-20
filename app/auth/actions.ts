@@ -21,6 +21,8 @@ export async function signUp(formData: FormData) {
 
   const email    = formData.get("email")    as string;
   const password = formData.get("password") as string;
+  const requestedPalette = formData.get("palette");
+  const palette = requestedPalette === "morning-sky" ? "morning-sky" : "dreamy-lavender";
 
   const { error } = await supabase.auth.signUp({
     email,
@@ -28,6 +30,9 @@ export async function signUp(formData: FormData) {
     options: {
       // After email confirmation, user lands on /world
       emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/auth/callback`,
+      // Auth user metadata is scoped to the account being created and is
+      // available even when email confirmation is required.
+      data: { palette },
     },
   });
 
