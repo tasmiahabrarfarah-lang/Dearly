@@ -13,6 +13,8 @@ import { ArrowLeft, PenLine } from "lucide-react";
 import { useDiary } from "./DiaryContext";
 import { formatDate } from "@/lib/diaryStorage";
 import { AudienceBadge } from "./AudienceControl";
+import DiaryShareControl from "./DiaryShareControl";
+import { AvatarImage } from "@/components/profile/avatars";
 
 interface Props {
   entryId: string;
@@ -20,7 +22,9 @@ interface Props {
 
 export default function DiaryEntryView({ entryId }: Props) {
   const { state, openList, openEditor } = useDiary();
-  const entry = state.entries.find((e) => e.id === entryId);
+  const ownEntry = state.entries.find((e) => e.id === entryId);
+  const sharedEntry = state.sharedEntries.find((e) => e.id === entryId);
+  const entry = ownEntry ?? sharedEntry;
 
   if (!entry) {
     return (
@@ -59,12 +63,14 @@ export default function DiaryEntryView({ entryId }: Props) {
           <span>Back to Entries</span>
         </button>
 
-        {/* Audience indicator — centred between the two action buttons */}
-        <div className="flex-1 flex justify-center px-2">
-          <AudienceBadge audience={entry.audience ?? "only_me"} />
+        <div className="flex-1 flex items-center justify-center gap-2 px-2">
+          {sharedEntry ? (
+            <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--palette-text-muted)" }}><AvatarImage avatarKey={sharedEntry.ownerAvatarKey} className="h-5 w-5" /> Shared by {sharedEntry.ownerName} · Read only</span>
+          ) : <AudienceBadge audience={entry.audience ?? "only_me"} />}
         </div>
 
-        <button
+        {ownEntry && state.sharingAvailable && <DiaryShareControl entryId={entry.id} />}
+        {ownEntry && <button
           onClick={() => openEditor(entry.id)}
           className="
             flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
@@ -77,7 +83,7 @@ export default function DiaryEntryView({ entryId }: Props) {
         >
           <PenLine size={14} aria-hidden />
           <span>Edit Entry</span>
-        </button>
+        </button>}
       </div>
 
       {/* ── Paper surface ─────────────────────────────────── */}
@@ -115,6 +121,7 @@ export default function DiaryEntryView({ entryId }: Props) {
         />
 
         <div className="relative px-6 pt-5 pb-8 pl-14">
+          {sharedEntry && <p className="mb-3 text-xs" style={{ color: "var(--palette-text-muted)" }}>From {sharedEntry.ownerName}{sharedEntry.ownerDearlyId ? ` · @${sharedEntry.ownerDearlyId}` : ""}</p>}
           {/* Date */}
           <p
             className="text-xs mb-4"

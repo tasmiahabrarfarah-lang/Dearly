@@ -16,7 +16,6 @@ import { ArrowLeft, Save, Check, AlertCircle } from "lucide-react";
 import { useDiary } from "./DiaryContext";
 import {
   DiaryEntry,
-  DiaryAudience,
   PAGE_COLORS,
   FONT_OPTIONS,
   FONT_SIZES,
@@ -45,6 +44,11 @@ export default function DiaryEditor({ entryId }: Props) {
   );
 
   const [saved, setSaved] = useState(false);
+  // Id of this entry once it exists in storage. For a brand-new entry the view's
+  // entryId prop stays null forever, and `saved` flips back to false after 2.5s, so
+  // the old `entryId ?? (saved ? draft.id : null)` made the sharing panel vanish
+  // again shortly after saving. This stays set for the life of the editor.
+  const [savedId, setSavedId] = useState<string | null>(existing?.id ?? null);
   const [isDirty, setIsDirty] = useState(false);
   const [saveErrorLocal, setSaveErrorLocal] = useState<string | null>(null);
 
@@ -69,7 +73,14 @@ export default function DiaryEditor({ entryId }: Props) {
     []
   );
 
-  const handleSave = () => {
+  // Audience is persisted through the share rows (not the entry save), so changing it
+  // must not mark the entry "Unsaved". Returning `prev` when nothing changed also
+  // prevents render loops.
+  const handleAudienceChange = useCallback((audience: DiaryEntry["audience"]) => {
+    setDraft((prev) => (prev.audience === audience ? prev : { ...prev, audience }));
+  }, []);
+
+  const handleSave = async () => {
     // Skip saving empty new entries
     if (!draft.body.trim() && !draft.title.trim()) {
       setSaveErrorLocal("Add a title or some writing before saving.");
@@ -83,18 +94,21 @@ export default function DiaryEditor({ entryId }: Props) {
       title: draft.title.trim(),
       updatedAt: now,
       // Only update createdAt if this is brand new
-      createdAt: existing ? draft.createdAt : now,
+      createdAt: existing || savedId ? draft.createdAt : now,
     };
 
-    const ok = saveEntry(entryToSave);
+    const ok = await saveEntry(entryToSave);
     if (ok) {
+      setSavedId(entryToSave.id);
       setDraft(entryToSave);
       setIsDirty(false);
       setSaved(true);
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
     } else {
-      setSaveErrorLocal("Couldn't save. Your browser storage may be full.");
+      // DiaryContext sets a path-specific error (Supabase or local storage).
+      // Avoid replacing it with a generic browser-quota message.
+      setSaveErrorLocal(null);
     }
   };
 
@@ -207,7 +221,7 @@ export default function DiaryEditor({ entryId }: Props) {
             hidden sm:flex
           "
         >
-          <DiaryCustomizationSidebar draft={draft} update={update} />
+          <DiaryCustomizationSidebar draft={draft} update={update} entryId={savedId} onAudienceChange={handleAudienceChange} sharingAvailable={state.sharingAvailable} />
         </div>
       </div>
 
@@ -216,7 +230,7 @@ export default function DiaryEditor({ entryId }: Props) {
         className="mt-4 sm:hidden flex-shrink-0"
         style={{ borderTop: "1px solid var(--palette-surface-border)", paddingTop: "1rem" }}
       >
-        <DiaryCustomizationSidebar draft={draft} update={update} compact />
+        <DiaryCustomizationSidebar draft={draft} update={update} compact entryId={savedId} onAudienceChange={handleAudienceChange} sharingAvailable={state.sharingAvailable} />
       </div>
     </div>
   );
@@ -326,9 +340,12 @@ interface SidebarProps {
   draft: DiaryEntry;
   update: <K extends keyof DiaryEntry>(key: K, value: DiaryEntry[K]) => void;
   compact?: boolean;
+  entryId: string | null;
+  onAudienceChange: (audience: DiaryEntry["audience"]) => void;
+  sharingAvailable: boolean;
 }
 
-function DiaryCustomizationSidebar({ draft, update, compact }: SidebarProps) {
+function DiaryCustomizationSidebar({ draft, update, compact, entryId, onAudienceChange, sharingAvailable }: SidebarProps) {
   return (
     <div
       className={
@@ -341,7 +358,9 @@ function DiaryCustomizationSidebar({ draft, update, compact }: SidebarProps) {
       <div className={compact ? "w-full" : undefined}>
         <AudienceControl
           audience={draft.audience}
-          onChange={(value: DiaryAudience) => update("audience", value)}
+          entryId={entryId}
+          sharingAvailable={sharingAvailable}
+          onAudienceChange={onAudienceChange}
         />
       </div>
 

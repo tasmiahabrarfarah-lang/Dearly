@@ -1,213 +1,145 @@
 "use client";
 
+import { DiaryAudience, AUDIENCE_OPTIONS } from "@/lib/diaryStorage";
+import DiaryShareControl from "./DiaryShareControl";
+import { useCallback, useEffect, useState } from "react";
+import { setDiaryEntryShares } from "@/diary/actions";
+
 /**
- * AudienceControl
- * Privacy picker for diary entries. Renders a labelled dropdown trigger
- * that opens an inline selector with all four audience options.
- *
- * Only "Only Me" has full backend enforcement in Diary Privacy v1.0.
- * Friend-based options show a "Friends milestone" note because the
- * friend system and Supabase diary migration are not yet complete.
- *
- * Design principles:
- * - Fits inside DiaryCustomizationSidebar without obscuring the writing area.
- * - Uses the existing Dearly palette variables — no new colours.
- * - Accessible: keyboard-navigable, aria-expanded, aria-label on each option.
- * - Works in both desktop sidebar (compact=false) and mobile strip (compact=true).
+ * Only these two audiences are backed by the database (an entry is either private,
+ * or shared via explicit rows in diary_entry_shares). "all_friends" and
+ * "all_friends_except" have no server-side storage or policy yet, so offering them
+ * produced a choice that could never be saved. Add them back here once the schema
+ * supports them.
  */
+const SELECTABLE_AUDIENCES: DiaryAudience[] = ["only_me", "selected_friends"];
 
-import React, { useRef, useState, useEffect } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import {
-  DiaryAudience,
-  AUDIENCE_OPTIONS,
-  AudienceOption,
-} from "@/lib/diaryStorage";
-
-interface Props {
-  audience: DiaryAudience;
-  onChange: (value: DiaryAudience) => void;
-}
-
-// ── Small badge used on entry list cards and viewer ──────────────────────
 export function AudienceBadge({ audience }: { audience: DiaryAudience }) {
-  const opt = AUDIENCE_OPTIONS.find((o) => o.value === audience);
-  if (!opt) return null;
+  const opt = AUDIENCE_OPTIONS.find((o) => o.value === audience) ?? AUDIENCE_OPTIONS[0];
   return (
-    <span
-      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
-      style={{
-        background: "var(--palette-ground)",
-        color: "var(--palette-text-muted)",
-      }}
-      title={opt.description}
-      aria-label={`Audience: ${opt.label}`}
-    >
-      <span aria-hidden="true">{opt.icon}</span>
-      <span>{opt.label}</span>
+    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--palette-ground)", color: "var(--palette-text-muted)" }} title={opt.description} aria-label={`Audience: ${opt.label}`}>
+      <span aria-hidden="true">{opt.icon}</span><span>{opt.label}</span>
     </span>
   );
 }
 
-// ── Main control ──────────────────────────────────────────────────────────
-export default function AudienceControl({ audience, onChange }: Props) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+interface AudienceControlProps {
+  audience: DiaryAudience;
+  entryId: string | null;
+  sharingAvailable: boolean;
+  onAudienceChange?: (audience: DiaryAudience) => void;
+}
 
-  const current: AudienceOption =
-    AUDIENCE_OPTIONS.find((o) => o.value === audience) ?? AUDIENCE_OPTIONS[0];
+/**
+ * Privacy / audience selector for diary entries.
+ * Shows the current audience badge, an audience picker (only_me vs selected_friends),
+ * and — once an entry has been saved — the friend sharing panel.
+ */
+export default function AudienceControl({
+  audience,
+  entryId,
+  sharingAvailable,
+  onAudienceChange,
+}: AudienceControlProps) {
+  const [currentAudience, setCurrentAudience] = useState(audience);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Close when clicking outside
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
+  // Keep local state in sync when prop changes (e.g. loading a different entry)
+  useEffect(() => setCurrentAudience(audience), [audience]);
+
+  const handleAudienceSelect = useCallback(
+    async (value: DiaryAudience) => {
+      if (busy || value === currentAudience) return;
+      setError(null);
+      // Switching back to "Only Me" must actually revoke access on the server.
+      // Previously this only flipped local UI state, so an entry could look private
+      // while its share rows (and friends' read access) stayed in place.
+      if (value === "only_me" && entryId && sharingAvailable) {
+        setBusy(true);
+        const result = await setDiaryEntryShares(entryId, []);
+        setBusy(false);
+        if (result.error) { setError(result.error); return; }
       }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+      setCurrentAudience(value);
+      onAudienceChange?.(value);
+    },
+    [busy, currentAudience, entryId, sharingAvailable, onAudienceChange]
+  );
 
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open]);
+  const handleRecipientsChanged = useCallback(
+    (count: number) => {
+      const next: DiaryAudience = count ? "selected_friends" : "only_me";
+      setCurrentAudience(next);
+      onAudienceChange?.(next);
+    },
+    [onAudienceChange]
+  );
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-2">
-      {/* Section label */}
+    <div className="flex flex-col gap-2">
       <p
         className="text-xs font-semibold uppercase tracking-wider"
         style={{ color: "var(--palette-text-muted)" }}
       >
-        Who can read this?
+        Privacy
       </p>
 
-      {/* Trigger button */}
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={`Audience: ${current.label}. Tap to change.`}
-        onClick={() => setOpen((v) => !v)}
-        className="
-          w-full flex items-center justify-between gap-2
-          px-3 py-2 rounded-xl text-sm font-medium
-          transition-all duration-150 active:scale-[0.98]
-          focus-visible:outline-none focus-visible:ring-2
-        "
-        style={{
-          background: "var(--palette-ground)",
-          border: "1.5px solid var(--palette-accent)",
-          color: "var(--palette-text-primary)",
-        }}
-      >
-        <span className="flex items-center gap-2 min-w-0">
-          <span aria-hidden="true">{current.icon}</span>
-          <span className="truncate">{current.label}</span>
-        </span>
-        {open ? (
-          <ChevronUp size={14} aria-hidden className="flex-shrink-0" />
+      {/* ── Audience picker buttons ── */}
+      <div className="flex flex-col gap-1">
+        {AUDIENCE_OPTIONS.filter((o) => SELECTABLE_AUDIENCES.includes(o.value)).map((opt) => {
+          const needsSharing = opt.requiresFriendSystem && !sharingAvailable;
+          const isSelected = currentAudience === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { if (!needsSharing) void handleAudienceSelect(opt.value); }}
+              aria-pressed={isSelected}
+              disabled={needsSharing || busy}
+              title={needsSharing ? "Connect Supabase and apply the diary sharing migration to unlock." : opt.description}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-all duration-150 active:scale-[0.98]"
+              style={{
+                background: isSelected ? "var(--palette-ground)" : "transparent",
+                border: `1.5px solid ${isSelected ? "var(--palette-accent)" : "var(--palette-surface-border)"}`,
+                color: "var(--palette-text-primary)",
+                opacity: needsSharing ? 0.4 : 1,
+                cursor: needsSharing ? "not-allowed" : "pointer",
+              }}
+            >
+              <span aria-hidden="true">{opt.icon}</span>
+              <span className="font-medium">{opt.label}</span>
+              {needsSharing && (
+                <span className="ml-auto text-xs" style={{ color: "var(--palette-text-muted)" }}>
+                  Soon
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Description of current audience ── */}
+      <p className="text-xs leading-snug" style={{ color: "var(--palette-text-muted)" }}>
+        {currentAudience === "only_me"
+          ? "Only you can read this entry."
+          : "Only the friends you select can read this entry."}
+      </p>
+
+      {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+
+      {/* ── Friend sharing panel (only after saving + Supabase available) ── */}
+      {sharingAvailable && currentAudience !== "only_me" && (
+        entryId ? (
+          <DiaryShareControl
+            entryId={entryId}
+            onRecipientsChanged={handleRecipientsChanged}
+          />
         ) : (
-          <ChevronDown size={14} aria-hidden className="flex-shrink-0" />
-        )}
-      </button>
-
-      {/* Dropdown options */}
-      {open && (
-        <ul
-          role="listbox"
-          aria-label="Audience options"
-          className="flex flex-col gap-1 rounded-2xl overflow-hidden"
-          style={{
-            border: "1px solid var(--palette-surface-border)",
-            background: "var(--palette-surface)",
-            boxShadow: "0 4px 20px rgba(80,50,140,0.12)",
-          }}
-        >
-          {AUDIENCE_OPTIONS.map((opt) => {
-            const isSelected = opt.value === audience;
-            return (
-              <li key={opt.value} role="option" aria-selected={isSelected}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange(opt.value);
-                    setOpen(false);
-                  }}
-                  className="
-                    w-full text-left px-3 py-2.5 flex flex-col gap-0.5
-                    transition-colors duration-100
-                    focus-visible:outline-none focus-visible:ring-2
-                    active:scale-[0.99]
-                  "
-                  style={{
-                    background: isSelected
-                      ? "var(--palette-ground)"
-                      : "transparent",
-                    color: "var(--palette-text-primary)",
-                  }}
-                  aria-label={`${opt.label}: ${opt.description}${opt.requiresFriendSystem ? " (requires friends milestone)" : ""}`}
-                >
-                  {/* Option header row */}
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 text-sm font-medium">
-                      <span aria-hidden="true">{opt.icon}</span>
-                      <span>{opt.label}</span>
-                    </span>
-                    {isSelected && (
-                      <span
-                        className="text-xs font-semibold flex-shrink-0"
-                        style={{ color: "var(--palette-accent)" }}
-                        aria-hidden="true"
-                      >
-                        ✓
-                      </span>
-                    )}
-                  </span>
-
-                  {/* Description */}
-                  <span
-                    className="text-xs leading-snug pl-6"
-                    style={{ color: "var(--palette-text-muted)" }}
-                  >
-                    {opt.description}
-                  </span>
-
-                  {/* Friend-system note */}
-                  {opt.requiresFriendSystem && (
-                    <span
-                      className="text-xs pl-6 mt-0.5"
-                      style={{ color: "var(--palette-text-muted)", opacity: 0.75 }}
-                    >
-                      ✦ Requires the friends milestone
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {/* Inline note for friend-based audiences */}
-      {current.requiresFriendSystem && (
-        <p
-          className="text-xs leading-snug px-1"
-          style={{ color: "var(--palette-text-muted)", opacity: 0.8 }}
-          role="note"
-        >
-          Friend sharing will become active once the friends milestone is complete.
-        </p>
+          <p className="text-xs" style={{ color: "var(--palette-text-muted)" }}>
+            Save this entry first to choose who can read it.
+          </p>
+        )
       )}
     </div>
   );

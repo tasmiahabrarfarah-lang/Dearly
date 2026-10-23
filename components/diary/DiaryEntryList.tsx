@@ -10,8 +10,10 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PenLine, Trash2, BookOpen, Plus } from "lucide-react";
 import { useDiary } from "./DiaryContext";
+import type { SharedDiaryEntry } from "./DiaryContext";
 import { formatDateShort } from "@/lib/diaryStorage";
 import { AudienceBadge } from "./AudienceControl";
+import { AvatarImage } from "@/components/profile/avatars";
 
 export default function DiaryEntryList() {
   const { state, openEditor, openReader, removeEntry } =
@@ -19,20 +21,21 @@ export default function DiaryEntryList() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { entries } = state;
+  const [listMode, setListMode] = useState<"mine" | "shared">("mine");
 
   // Sort newest first (already sorted in context, but defensive)
   const sorted = [...entries].sort(
     (a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
+  const sortedShared = [...state.sharedEntries].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const handleNewEntry = () => {
     openEditor(null);
   };
 
-  const handleDelete = (id: string) => {
-    removeEntry(id);
-    setConfirmDeleteId(null);
+  const handleDelete = async (id: string) => {
+    if (await removeEntry(id)) setConfirmDeleteId(null);
   };
 
   return (
@@ -58,7 +61,7 @@ export default function DiaryEntryList() {
               : `${entries.length} entr${entries.length === 1 ? "y" : "ies"}`}
           </p>
         </div>
-        <button
+        {listMode === "mine" && <button
           onClick={handleNewEntry}
           className="
             flex items-center gap-2 px-4 py-2 rounded-xl
@@ -72,11 +75,19 @@ export default function DiaryEntryList() {
         >
           <Plus size={15} aria-hidden />
           <span>New Entry</span>
-        </button>
+        </button>}
+      </div>
+
+      {state.accessNotice && <p role="status" className="mb-3 rounded-xl px-3 py-2 text-sm" style={{ background: "var(--palette-ground)", color: "var(--palette-text-primary)" }}>{state.accessNotice}</p>}
+      {!state.isLoaded && <p role="status" className="py-8 text-center text-sm" style={{ color: "var(--palette-text-muted)" }}>Opening your diary…</p>}
+
+      <div className="mb-3 flex gap-2" role="tablist" aria-label="Diary entries">
+        <button type="button" role="tab" aria-selected={listMode === "mine"} onClick={() => setListMode("mine")} className="rounded-xl px-3 py-1.5 text-sm font-medium" style={{ background: listMode === "mine" ? "var(--palette-ground)" : "transparent", color: "var(--palette-text-primary)" }}>My entries</button>
+        <button type="button" role="tab" aria-selected={listMode === "shared"} onClick={() => setListMode("shared")} className="rounded-xl px-3 py-1.5 text-sm font-medium" style={{ background: listMode === "shared" ? "var(--palette-ground)" : "transparent", color: "var(--palette-text-primary)" }}>Shared with me{sortedShared.length > 0 ? ` (${sortedShared.length})` : ""}</button>
       </div>
 
       {/* ── Empty state ──────────────────────────────────── */}
-      {sorted.length === 0 && (
+      {state.isLoaded && listMode === "mine" && sorted.length === 0 && (
         <motion.div
           className="flex flex-col items-center justify-center flex-1 gap-5 py-10 text-center"
           initial={{ opacity: 0, y: 8 }}
@@ -125,10 +136,27 @@ export default function DiaryEntryList() {
         </motion.div>
       )}
 
+      {state.isLoaded && listMode === "shared" && !state.sharingAvailable && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+          <BookOpen size={28} style={{ color: "var(--palette-accent)" }} aria-hidden />
+          <p className="text-sm font-semibold" style={{ color: "var(--palette-text-primary)" }}>Shared entries are unavailable.</p>
+          <p className="text-xs" style={{ color: "var(--palette-text-muted)" }}>Connect Supabase and apply the diary sharing migration to enable secure sharing.</p>
+        </div>
+      )}
+      {state.isLoaded && listMode === "shared" && state.sharingAvailable && sortedShared.length === 0 && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+          <BookOpen size={28} style={{ color: "var(--palette-accent)" }} aria-hidden />
+          <p className="text-sm font-semibold" style={{ color: "var(--palette-text-primary)" }}>No entries have been shared with you yet.</p>
+          <p className="text-xs" style={{ color: "var(--palette-text-muted)" }}>When a friend shares a memory, it will appear here.</p>
+        </div>
+      )}
+
       {/* ── Entry list ───────────────────────────────────── */}
       <div className="diary-entry-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain pr-2">
         <AnimatePresence initial={false}>
-          {sorted.map((entry) => (
+          {state.isLoaded && (listMode === "mine" ? sorted : sortedShared).map((entry) => {
+            const sharedEntry = "ownerId" in entry ? entry as SharedDiaryEntry : null;
+            return (
             <motion.div
               key={entry.id}
               layout
@@ -159,6 +187,7 @@ export default function DiaryEntryList() {
                     </span>
                   )}
                 </p>
+                {sharedEntry && <span className="mb-1 flex items-center gap-1.5 text-xs" style={{ color: "var(--palette-text-muted)" }}><AvatarImage avatarKey={sharedEntry.ownerAvatarKey} className="h-5 w-5" /><span>From {sharedEntry.ownerName}</span></span>}
                 <p
                   className="text-xs mb-2"
                   style={{ color: "var(--palette-text-muted)" }}
@@ -166,14 +195,16 @@ export default function DiaryEntryList() {
                   {formatDateShort(entry.createdAt)}
                   {entry.updatedAt !== entry.createdAt && " · edited"}
                 </p>
-                {/* Audience badge — shown only for non-default audiences so private entries feel uncluttered */}
-                {entry.audience && entry.audience !== "only_me" && (
+                {/* Shared entries and non-default legacy audiences have clear labels. */}
+                {sharedEntry ? (
+                  <div className="mb-2"><span className="text-xs font-medium" style={{ color: "var(--palette-accent)" }}>Shared with you · Read only</span></div>
+                ) : entry.audience && entry.audience !== "only_me" && (
                   <div className="mb-2">
                     <AudienceBadge audience={entry.audience} />
                   </div>
                 )}
                 {/* Lock icon for private entries — subtle, not alarming */}
-                {(!entry.audience || entry.audience === "only_me") && (
+                {!sharedEntry && (!entry.audience || entry.audience === "only_me") && (
                   <div className="mb-2">
                     <span
                       className="inline-flex items-center gap-1 text-xs"
@@ -200,7 +231,7 @@ export default function DiaryEntryList() {
               </button>
 
               {/* Action buttons */}
-              <div
+              {!sharedEntry && <div
                 className="
                   absolute top-3 right-3 flex gap-1
                   opacity-0 group-hover:opacity-100 group-focus-within:opacity-100
@@ -233,10 +264,10 @@ export default function DiaryEntryList() {
                 >
                   <Trash2 size={13} aria-hidden />
                 </button>
-              </div>
+              </div>}
 
               {/* Delete confirmation overlay */}
-              <AnimatePresence>
+              {!sharedEntry && <AnimatePresence>
                 {confirmDeleteId === entry.id && (
                   <motion.div
                     className="
@@ -282,9 +313,9 @@ export default function DiaryEntryList() {
                     </div>
                   </motion.div>
                 )}
-              </AnimatePresence>
+              </AnimatePresence>}
             </motion.div>
-          ))}
+          );})}
         </AnimatePresence>
       </div>
     </div>

@@ -20,6 +20,14 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Diary sharing setup
+
+Diary entries are stored in Supabase for signed-in users so row-level security can protect private entries and explicit friend shares. Before using sharing, apply [`supabase/migrations/20261020000100_diary_sharing.sql`](supabase/migrations/20261020000100_diary_sharing.sql) to the connected Supabase project. It expects the existing `public.friendships` table with `requester_id`, `addressee_id`, and `status` columns, where accepted friendships use `status = 'accepted'`.
+
+On the first signed-in load after the migration, existing browser diary entries are imported to that account and the browser-wide local copy is cleared. New and edited entries then use the account-backed table. The local-only fallback remains for development without Supabase and does not provide multi-user sharing.
+
+The pgTAP authorization checks are in [`supabase/tests/diary_sharing.test.sql`](supabase/tests/diary_sharing.test.sql) and can be run with `supabase test db` against a local Supabase database after installing the Supabase CLI, initializing its local project configuration, and applying migrations.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

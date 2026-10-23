@@ -7,20 +7,8 @@
 
 // ── Privacy / Audience ────────────────────────────────────────────────────
 /**
- * Who can read this diary entry.
- *
- *  "only_me"           — private to the author only (DEFAULT)
- *  "selected_friends"  — only explicitly listed accepted friends
- *  "all_friends"       — every accepted friend of the author
- *  "all_friends_except"— all accepted friends except specifically excluded ones
- *
- * NOTE (Diary Privacy v1.0):
- *   Friend-based options ("selected_friends", "all_friends", "all_friends_except")
- *   are stored and displayed in the UI but CANNOT be backend-enforced until:
- *     (a) diary entries are migrated from localStorage to a Supabase table, AND
- *     (b) the friend system milestone is complete.
- *   Until then, only "only_me" provides meaningful isolation.
- *   The UI clearly communicates this limitation.
+ * The wider audience values are retained to read older local records, but the
+ * database sharing table is now the only source of friend access.
  */
 export type DiaryAudience =
   | "only_me"
@@ -37,32 +25,19 @@ export interface DiaryEntry {
   pageColor: string;   // hex or CSS color name
   fontFamily: string;  // CSS font-family value
   fontSize: number;    // px, e.g. 15
-  /**
-   * Who can read this entry. Defaults to "only_me" for every new entry.
-   * Missing or invalid values are treated as "only_me" (never broader access).
-   */
+  /** Legacy compatibility field. Database entries always load as only_me. */
   audience: DiaryAudience;
   /**
-   * Friend user IDs allowed to read this entry when audience === "selected_friends".
-   * Populated by the friend-system milestone; empty array is safe default.
+   * Legacy compatibility field; permissions are stored server-side.
    */
   allowedFriendIds: string[];
   /**
-   * Friend user IDs excluded from reading when audience === "all_friends_except".
-   * Populated by the friend-system milestone; empty array is safe default.
+   * Legacy compatibility field; permissions are stored server-side.
    */
   excludedFriendIds: string[];
 }
 
 const STORAGE_KEY = "dearly:diary:v1";
-
-/** Valid audience values — used for validation */
-const VALID_AUDIENCES: DiaryAudience[] = [
-  "only_me",
-  "selected_friends",
-  "all_friends",
-  "all_friends_except",
-];
 
 // ── Default customization values ──────────────────────────────────────────
 // Defined here (before normalizeEntry) so defaults can be used in normalization.
@@ -98,11 +73,9 @@ export const DEFAULT_FONT_SIZE  = 16;
  * This is the migration path for entries created before Diary Privacy v1.0.
  */
 function normalizeEntry(e: Record<string, unknown>): DiaryEntry {
-  const audience: DiaryAudience =
-    typeof e.audience === "string" &&
-    VALID_AUDIENCES.includes(e.audience as DiaryAudience)
-      ? (e.audience as DiaryAudience)
-      : "only_me";
+  // Legacy broad audience settings were never server-enforced. Treat them as
+  // private during migration; explicit share rows are the only access grant.
+  const audience: DiaryAudience = "only_me";
 
   return {
     id: e.id as string,
