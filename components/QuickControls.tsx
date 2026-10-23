@@ -18,6 +18,7 @@ interface QuickControlsProps {
   onOpen: (panel: QuickControlKey, anchor: DOMRect) => void;
   /** Number of incoming pending friend requests. Shows a badge when > 0. */
   pendingCount?: number;
+  unreadNotificationCount?: number;
 }
 
 const CONTROLS: { key: QuickControlKey; label: string; Icon: LucideIcon }[] = [
@@ -26,7 +27,7 @@ const CONTROLS: { key: QuickControlKey; label: string; Icon: LucideIcon }[] = [
   { key: "settings",      label: "Settings",      Icon: Settings },
 ];
 
-export default function QuickControls({ onOpen, pendingCount = 0 }: QuickControlsProps) {
+export default function QuickControls({ onOpen, pendingCount = 0, unreadNotificationCount = 0 }: QuickControlsProps) {
   return (
     <motion.div
       className="glass rounded-2xl flex items-center gap-1 px-2 py-2 shadow-soft"
@@ -43,6 +44,8 @@ export default function QuickControls({ onOpen, pendingCount = 0 }: QuickControl
           aria-label={
             key === "friends" && pendingCount > 0
               ? `${label} — ${pendingCount} pending request${pendingCount === 1 ? "" : "s"}`
+              : key === "notifications" && unreadNotificationCount > 0
+              ? `${label} — ${unreadNotificationCount} unread`
               : label
           }
           className="
@@ -65,6 +68,11 @@ export default function QuickControls({ onOpen, pendingCount = 0 }: QuickControl
               aria-hidden="true"
             >
               {pendingCount > 9 ? "9+" : pendingCount}
+            </span>
+          )}
+          {key === "notifications" && unreadNotificationCount > 0 && (
+            <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-bold leading-none" style={{ background: "var(--palette-accent)", color: "#fff" }} aria-hidden="true">
+              {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
             </span>
           )}
         </button>

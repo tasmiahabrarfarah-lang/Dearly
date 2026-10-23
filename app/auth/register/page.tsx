@@ -8,7 +8,7 @@ import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
-import { signUp } from "@/app/auth/actions";
+import { resendSignupConfirmation, signUp } from "@/app/auth/actions";
 import { PALETTES, PaletteId } from "@/components/ThemeContext";
 import AuthCard, {
   Field,
@@ -22,6 +22,10 @@ export default function RegisterPage() {
   const [isPending, startTransition] = useTransition();
   const [error, setError]       = useState<string | null>(null);
   const [success, setSuccess]   = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [resendSent, setResendSent] = useState(false);
+  const [isResending, startResend] = useTransition();
   const [showPw, setShowPw]     = useState(false);
   const [showCpw, setShowCpw]   = useState(false);
   const [pwError, setPwError]   = useState<string | null>(null);
@@ -50,6 +54,7 @@ export default function RegisterPage() {
       if (result?.error) {
         setError(result.error);
       } else {
+        setSubmittedEmail(String(fd.get("email") ?? ""));
         setSuccess(true);
       }
     });
@@ -74,7 +79,28 @@ export default function RegisterPage() {
             </div>
           }
         >
-          <SuccessBanner message="Open your email and click the link to activate your account. You can close this tab after that." />
+          <SuccessBanner message={`If email confirmation is enabled, a message should arrive at ${submittedEmail}. Follow its link to activate your account.`} />
+          <div className="flex flex-col gap-2">
+            {resendError && <ErrorBanner message={resendError} />}
+            {resendSent && <SuccessBanner message="A new confirmation message was requested. Check your inbox and spam folder." />}
+            <button
+              type="button"
+              disabled={isResending}
+              onClick={() => {
+                setResendError(null);
+                setResendSent(false);
+                startResend(async () => {
+                  const result = await resendSignupConfirmation(submittedEmail);
+                  if (result.error) setResendError(result.error);
+                  else setResendSent(true);
+                });
+              }}
+              className="w-full rounded-xl px-4 py-2 text-sm font-semibold transition-opacity disabled:opacity-60"
+              style={{ background: "rgba(196, 181, 232, 0.25)", color: "#6b5b8a" }}
+            >
+              {isResending ? "Requesting another message…" : "Resend confirmation email"}
+            </button>
+          </div>
           <p className="text-xs text-center" style={{ color: "#6b5b8a" }}>
             Already confirmed?{" "}
             <AuthLink href="/auth/login">Log in here</AuthLink>

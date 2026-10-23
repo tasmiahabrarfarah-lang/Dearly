@@ -77,7 +77,7 @@ export async function getNotes(entryId: string): Promise<GetNotesResult> {
   // Resolve author profiles in a single follow-up query (same pattern as DiaryContext).
   // author_id → auth.users, not profiles, so we can't use a PostgREST join directly.
   const authorIds = Array.from(new Set(rows.map((r) => r.author_id as string)));
-  let profileMap = new Map<string, NoteAuthor>();
+  const profileMap = new Map<string, NoteAuthor>();
   if (authorIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")

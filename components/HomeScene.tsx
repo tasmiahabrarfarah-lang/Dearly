@@ -41,6 +41,7 @@ import {
 } from "./PanelContents";
 
 import { createClient } from "@/lib/supabase/client";
+import { getNotifications } from "@/app/notifications/actions";
 
 /* ─── Panel state type ──────────────────────────────────────────────── */
 type ActivePanel =
@@ -99,6 +100,8 @@ function HomeSceneInner() {
 
   // Pending friend request count — shown as badge on the Friends button
   const [pendingCount, setPendingCount] = useState(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [notificationEntryId, setNotificationEntryId] = useState<string | null>(null);
 
   const fetchPendingCount = useCallback(async () => {
     try {
@@ -121,8 +124,23 @@ function HomeSceneInner() {
     void fetchPendingCount();
   }, [fetchPendingCount]);
 
-  const openDiary = () => setDiaryOpen(true);
-  const closeDiary = () => setDiaryOpen(false);
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const result = await getNotifications();
+      if (!result.error) setUnreadNotificationCount((result.notifications ?? []).filter((item) => !item.read_at).length);
+    } catch {
+      // Notification schema may not have been migrated yet.
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchUnreadCount();
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void fetchUnreadCount(); }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [fetchUnreadCount]);
+
+  const openDiary = () => { setNotificationEntryId(null); setDiaryOpen(true); };
+  const closeDiary = () => { setDiaryOpen(false); setNotificationEntryId(null); };
 
   const open = (panel: Exclude<ActivePanel, "diary">, anchor: DOMRect) => {
     setPanelAnchor(anchor);
@@ -147,7 +165,15 @@ function HomeSceneInner() {
   const renderPanelContent = () => {
     switch (activePanel) {
       case "friends":       return <FriendsPanelContent />;
-      case "notifications": return <NotificationsPanelContent />;
+      case "notifications": return <NotificationsPanelContent onNavigate={(destination, entryId) => {
+        setActivePanel(null);
+        if (destination === "diary") {
+          setNotificationEntryId(entryId ?? null);
+          setDiaryOpen(true);
+        }
+        else setActivePanel("friends");
+        void fetchUnreadCount();
+      }} />;
       case "settings":      return <SettingsPanelContent />;
       case "profile":       return <ProfilePanelContent />;
       case "explore":       return <ExplorePanelContent />;
@@ -228,7 +254,7 @@ function HomeSceneInner() {
           <ProfileCard onOpen={(anchor) => open("profile", anchor)} />
         </div>
         <div className="flex items-center gap-2">
-          <QuickControls onOpen={handleQuickControl} pendingCount={pendingCount} />
+          <QuickControls onOpen={handleQuickControl} pendingCount={pendingCount} unreadNotificationCount={unreadNotificationCount} />
           {/* Sign-out — small, discreet; uses server action via form */}
           <form action={signOutAction}>
             <button
@@ -284,7 +310,7 @@ function HomeSceneInner() {
       </OverlayPanel>
 
       {/* ── Diary full-screen experience ────────────────── */}
-      <DiaryExperience isOpen={diaryOpen} onClose={closeDiary} onNewEntrySaved={awardGrowth} />
+      <DiaryExperience isOpen={diaryOpen} onClose={closeDiary} onNewEntrySaved={awardGrowth} initialEntryId={notificationEntryId} />
 
       {/* ── Seed selection modal (only when no tree chosen yet) ── */}
       {isLoaded && !treeState.treeType && <SeedSelectionModal />}

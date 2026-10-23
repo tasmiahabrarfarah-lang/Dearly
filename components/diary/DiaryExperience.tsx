@@ -120,9 +120,10 @@ interface DiaryExperienceProps {
   isOpen: boolean;
   onClose: () => void;
   onNewEntrySaved?: (entryId: string) => void;
+  initialEntryId?: string | null;
 }
 
-export default function DiaryExperience({ isOpen, onClose, onNewEntrySaved }: DiaryExperienceProps) {
+export default function DiaryExperience({ isOpen, onClose, onNewEntrySaved, initialEntryId }: DiaryExperienceProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -190,7 +191,7 @@ export default function DiaryExperience({ isOpen, onClose, onNewEntrySaved }: Di
             />
 
             {/* Inner content with provider */}
-            <DiaryProvider onNewEntrySaved={onNewEntrySaved}>
+            <DiaryProvider onNewEntrySaved={onNewEntrySaved} initialEntryId={initialEntryId}>
               <DiaryShell onClose={onClose} />
             </DiaryProvider>
           </motion.div>

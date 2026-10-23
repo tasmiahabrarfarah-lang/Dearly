@@ -7,8 +7,9 @@
  */
 
 import React from "react";
-import { Bell, Compass, Sparkles } from "lucide-react";
+import { Compass, Sparkles } from "lucide-react";
 import { useTheme, PALETTES, PaletteId } from "./ThemeContext";
+import NotificationsInbox from "./NotificationsPanelContent";
 
 /* ── Shared helpers ──────────────────────────────────────────────────── */
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -52,29 +53,8 @@ function MilestoneChip({ label }: { label: string }) {
 export { default as FriendsPanelContent } from "./friends/FriendsPanelContent";
 
 /* ── Notifications Panel ─────────────────────────────────────────────── */
-export function NotificationsPanelContent() {
-  return (
-    <div className="flex flex-col items-center text-center gap-4 py-2">
-      <div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center"
-        style={{ background: "var(--palette-ground)" }}
-      >
-        <Bell size={28} style={{ color: "var(--palette-accent)" }} aria-hidden="true" />
-      </div>
-      <div>
-        <h3
-          className="text-base font-semibold mb-2"
-          style={{ color: "var(--palette-text-primary)" }}
-        >
-          Notifications
-        </h3>
-        <Note>
-          Gentle, non-intrusive notifications will be added once friends and diary sharing are built. You won&apos;t be overwhelmed — only the moments that matter.
-        </Note>
-      </div>
-      <MilestoneChip label="✦ Coming after friends milestone" />
-    </div>
-  );
+export function NotificationsPanelContent({ onNavigate }: { onNavigate: (destination: "friends" | "diary", entryId?: string) => void }) {
+  return <NotificationsInbox onNavigate={onNavigate} />;
 }
 
 /* ── Settings Panel ──────────────────────────────────────────────────── */
@@ -146,9 +126,7 @@ export function SettingsPanelContent() {
       {saveError && <p role="alert" className="text-xs" style={{ color: "#b4233d" }}>{saveError}</p>}
 
       <SectionLabel>More settings</SectionLabel>
-      <Note>
-        Account, privacy, language, and notification settings will be added in future milestones.
-      </Note>
+      <Note>Account, privacy, and language settings will be added in future milestones.</Note>
       <MilestoneChip label="✦ More options coming later" />
     </div>
   );

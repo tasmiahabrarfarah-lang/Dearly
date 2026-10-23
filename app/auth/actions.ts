@@ -14,10 +14,30 @@ const NO_CONFIG_ERROR =
   "Authentication is not configured. Add NEXT_PUBLIC_SUPABASE_URL and " +
   "NEXT_PUBLIC_SUPABASE_ANON_KEY to your .env.local file and restart the dev server.";
 
+function getAuthSiteUrl(): { url?: string; error?: string } {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!configured) return { error: "Set NEXT_PUBLIC_SITE_URL to the public address of this app before requesting an email." };
+  try {
+    const parsed = new URL(configured);
+    const local = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+    if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && local)) {
+      return { error: "NEXT_PUBLIC_SITE_URL must use HTTPS for a deployed app." };
+    }
+    if (process.env.NODE_ENV === "production" && local) {
+      return { error: "NEXT_PUBLIC_SITE_URL still points to localhost. Set it to the deployed app URL and rebuild." };
+    }
+    return { url: parsed.origin };
+  } catch {
+    return { error: "NEXT_PUBLIC_SITE_URL must be a valid absolute URL, such as https://dearly.example." };
+  }
+}
+
 // ── Sign Up ────────────────────────────────────────────────────────────────
 export async function signUp(formData: FormData) {
   const supabase = createClient();
   if (!supabase) return { error: NO_CONFIG_ERROR };
+  const site = getAuthSiteUrl();
+  if (!site.url) return { error: site.error };
 
   const email    = formData.get("email")    as string;
   const password = formData.get("password") as string;
@@ -29,7 +49,7 @@ export async function signUp(formData: FormData) {
     password,
     options: {
       // After email confirmation, user lands on /world
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/auth/callback`,
+      emailRedirectTo: new URL("/auth/callback", site.url).toString(),
       // Auth user metadata is scoped to the account being created and is
       // available even when email confirmation is required.
       data: { palette },
@@ -41,6 +61,25 @@ export async function signUp(formData: FormData) {
   }
 
   return { success: true, needsConfirmation: true };
+}
+
+// ── Resend sign-up confirmation ──────────────────────────────────────────
+export async function resendSignupConfirmation(email: string) {
+  if (typeof email !== "string" || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "Enter a valid email address." };
+  }
+  const supabase = createClient();
+  if (!supabase) return { error: NO_CONFIG_ERROR };
+  const site = getAuthSiteUrl();
+  if (!site.url) return { error: site.error };
+
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: new URL("/auth/callback", site.url).toString() },
+  });
+  if (error) return { error: error.message };
+  return { success: true };
 }
 
 // ── Sign In ────────────────────────────────────────────────────────────────
@@ -74,11 +113,13 @@ export async function signOut() {
 export async function forgotPassword(formData: FormData) {
   const supabase = createClient();
   if (!supabase) return { error: NO_CONFIG_ERROR };
+  const site = getAuthSiteUrl();
+  if (!site.url) return { error: site.error };
 
   const email = formData.get("email") as string;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/auth/callback?next=/auth/reset-password`,
+    redirectTo: new URL("/auth/callback?next=/auth/reset-password", site.url).toString(),
   });
 
   if (error) {

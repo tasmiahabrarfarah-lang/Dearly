@@ -125,9 +125,11 @@ const DiaryContext = createContext<DiaryContextValue | null>(null);
 export function DiaryProvider({
   children,
   onNewEntrySaved,
+  initialEntryId,
 }: {
   children: React.ReactNode;
   onNewEntrySaved?: (entryId: string) => void;
+  initialEntryId?: string | null;
 }) {
   const [state, dispatch] = useReducer(diaryReducer, {
     entries: [],
@@ -138,6 +140,12 @@ export function DiaryProvider({
     accessNotice: null,
     sharingAvailable: false,
   });
+
+  useEffect(() => {
+    if (state.isLoaded && initialEntryId) {
+      dispatch({ type: "SET_VIEW", view: { type: "reader", entryId: initialEntryId } });
+    }
+  }, [state.isLoaded, initialEntryId]);
 
   // Load account entries from Supabase when signed in. Import existing local entries
   // once, preserving the current browser diary while moving it behind RLS.
