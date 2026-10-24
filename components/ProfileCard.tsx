@@ -61,7 +61,7 @@ export default function ProfileCard({ onOpen }: ProfileCardProps) {
             style={{ background: "var(--palette-ground)" }}
           />
         ) : (
-          <AvatarImage avatarKey={avatarKey} className="w-full h-full" />
+          <AvatarImage avatarKey={avatarKey} accessory={profile?.avatar_accessory} className="w-full h-full" />
         )}
       </div>
 
@@ -81,6 +81,7 @@ export default function ProfileCard({ onOpen }: ProfileCardProps) {
             {greeting}
           </p>
         )}
+        {!loading && profile?.username && <p className="text-[10px] leading-tight truncate" style={{ color: "var(--palette-text-muted)" }}>@{profile.username}{profile.profile_title ? ` · ${profile.profile_title}` : ""}</p>}
       </div>
 
       <ChevronRight

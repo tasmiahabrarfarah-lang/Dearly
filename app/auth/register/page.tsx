@@ -182,6 +182,19 @@ export default function RegisterPage() {
           </fieldset>
 
           <Field
+            label="Username"
+            id="username"
+            name="username"
+            autoComplete="username"
+            placeholder="little_wanderer"
+            required
+            minLength={3}
+            maxLength={20}
+            pattern="[a-zA-Z0-9_]{3,20}"
+          />
+          <p className="-mt-3 text-xs" style={{ color: "#6b5b8a" }}>3–20 characters: lowercase letters, numbers, and underscores. You can change it later.</p>
+
+          <Field
             label="Email address"
             id="email"
             name="email"

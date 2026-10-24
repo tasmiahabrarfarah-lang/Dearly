@@ -14,8 +14,8 @@ import { Check, Copy, Loader2, Save, X } from "lucide-react";
 import { useProfile } from "./useProfile";
 import { AvatarImage, AVATAR_LABELS } from "./avatars";
 import { updateProfile } from "@/app/profile/actions";
-import { AVATAR_KEYS, PROFILE_CONSTRAINTS } from "@/lib/profile";
-import type { AvatarKey } from "@/lib/profile";
+import { AVATAR_KEYS, PROFILE_CONSTRAINTS, validateUsername } from "@/lib/profile";
+import type { AvatarKey, AvatarAccessory } from "@/lib/profile";
 
 export default function ProfileEditor() {
   const { profile, loading, error, reload } = useProfile();
@@ -23,7 +23,10 @@ export default function ProfileEditor() {
   // ── Edit state ──────────────────────────────────────────────────────────
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [username, setUsername] = useState("");
+  const [profileTitle, setProfileTitle] = useState("");
   const [avatarKey, setAvatarKey] = useState<AvatarKey>("fox");
+  const [accessory, setAccessory] = useState<AvatarAccessory>("none");
   const [isDirty, setIsDirty] = useState(false);
 
   // ── Action state ────────────────────────────────────────────────────────
@@ -37,7 +40,10 @@ export default function ProfileEditor() {
     if (profile) {
       setDisplayName(profile.display_name);
       setBio(profile.bio ?? "");
+      setUsername(profile.username ?? "");
+      setProfileTitle(profile.profile_title ?? "");
       setAvatarKey((profile.avatar_key as AvatarKey) ?? "fox");
+      setAccessory(profile.avatar_accessory ?? "none");
       setIsDirty(false);
       setSaveError(null);
       setSaveSuccess(false);
@@ -53,7 +59,10 @@ export default function ProfileEditor() {
     if (!profile) return;
     setDisplayName(profile.display_name);
     setBio(profile.bio ?? "");
+    setUsername(profile.username ?? "");
+    setProfileTitle(profile.profile_title ?? "");
     setAvatarKey((profile.avatar_key as AvatarKey) ?? "fox");
+    setAccessory(profile.avatar_accessory ?? "none");
     setIsDirty(false);
     setSaveError(null);
     setSaveSuccess(false);
@@ -78,12 +87,17 @@ export default function ProfileEditor() {
       setSaveError(`Bio must be ${PROFILE_CONSTRAINTS.bio.max} characters or fewer.`);
       return;
     }
+    if (username.trim() && validateUsername(username)) { setSaveError(validateUsername(username)); return; }
+    if (profileTitle.length > PROFILE_CONSTRAINTS.profileTitle.max) { setSaveError("Profile title must be 40 characters or fewer."); return; }
 
     startTransition(async () => {
       const result = await updateProfile({
         display_name: trimmedName,
         bio: bio.trim(),
         avatar_key: avatarKey,
+        username: username.trim().replace(/^@/, "").toLowerCase(),
+        profile_title: profileTitle.trim(),
+        avatar_accessory: accessory,
       });
 
       if (result.error) {
@@ -147,6 +161,11 @@ export default function ProfileEditor() {
   return (
     <div className="flex flex-col gap-5">
 
+      <section className="flex items-center gap-3 rounded-2xl p-3" style={{ background: "var(--palette-ground)", border: "1px solid var(--palette-surface-border)" }} aria-label="Profile preview">
+        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0"><AvatarImage avatarKey={avatarKey} accessory={accessory} className="w-full h-full" /></div>
+        <div className="min-w-0"><p className="text-sm font-semibold truncate" style={{ color: "var(--palette-text-primary)" }}>{displayName || "Your name"}</p><p className="text-xs truncate" style={{ color: "var(--palette-text-muted)" }}>{username ? `@${username.replace(/^@/, "")}` : "Choose a username"}{profileTitle ? ` · ${profileTitle}` : ""}</p>{bio && <p className="text-xs truncate mt-0.5" style={{ color: "var(--palette-text-muted)" }}>{bio}</p>}</div>
+      </section>
+
       {/* ── Avatar picker ─────────────────────────────────────── */}
       <section aria-labelledby="avatar-label">
         <p
@@ -176,7 +195,7 @@ export default function ProfileEditor() {
                   boxShadow: selected ? "0 0 0 2px var(--palette-accent-soft)" : "none",
                 }}
               >
-                <AvatarImage avatarKey={key} className="w-full h-full" />
+                <AvatarImage avatarKey={key} accessory={accessory} className="w-full h-full" />
                 {selected && (
                   <span
                     className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
@@ -190,6 +209,11 @@ export default function ProfileEditor() {
             );
           })}
         </div>
+      </section>
+
+      <section aria-label="Avatar accessory" className="flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--palette-text-muted)" }}>Accessory</p>
+        <div className="flex flex-wrap gap-2">{(["none", "glasses", "flower", "bow"] as const).map((item) => <button key={item} type="button" aria-pressed={accessory === item} onClick={() => { setAccessory(item); markDirty(); }} className="rounded-xl px-3 py-2 text-xs capitalize" style={{ color: "var(--palette-text-primary)", border: `1px solid ${accessory === item ? "var(--palette-accent)" : "var(--palette-surface-border)"}`, background: "var(--palette-ground)" }}>{item}</button>)}</div>
       </section>
 
       {/* ── Display name ──────────────────────────────────────── */}
@@ -226,6 +250,16 @@ export default function ProfileEditor() {
         >
           Up to {PROFILE_CONSTRAINTS.displayName.max} characters
         </p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="profile-username" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--palette-text-muted)" }}>Username</label>
+        <input id="profile-username" value={username} maxLength={20} onChange={(e) => { setUsername(e.target.value); markDirty(); }} placeholder="your_name" className="w-full px-3 py-2.5 rounded-xl text-sm" style={{ background: "var(--palette-ground)", border: "1px solid var(--palette-surface-border)", color: "var(--palette-text-primary)" }} />
+        <p className="text-xs" style={{ color: "var(--palette-text-muted)" }}>3–20 lowercase letters, numbers, or underscores. Your Dearly ID stays the same.</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="profile-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--palette-text-muted)" }}>Profile title</label>
+        <input id="profile-title" value={profileTitle} maxLength={40} onChange={(e) => { setProfileTitle(e.target.value); markDirty(); }} placeholder="Keeper of little things" className="w-full px-3 py-2.5 rounded-xl text-sm" style={{ background: "var(--palette-ground)", border: "1px solid var(--palette-surface-border)", color: "var(--palette-text-primary)" }} />
       </div>
 
       {/* ── Bio ───────────────────────────────────────────────── */}

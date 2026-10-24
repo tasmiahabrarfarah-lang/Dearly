@@ -42,6 +42,8 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 import { getNotifications } from "@/app/notifications/actions";
+import { getMyProfile } from "@/app/profile/actions";
+import PersonalizationSetup from "./PersonalizationSetup";
 
 /* ─── Panel state type ──────────────────────────────────────────────── */
 type ActivePanel =
@@ -102,6 +104,15 @@ function HomeSceneInner() {
   const [pendingCount, setPendingCount] = useState(0);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [notificationEntryId, setNotificationEntryId] = useState<string | null>(null);
+  const [showPersonalizationSetup, setShowPersonalizationSetup] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void getMyProfile().then((result) => {
+      if (active && "profile" in result && !result.profile.personalization_completed) setShowPersonalizationSetup(true);
+    });
+    return () => { active = false; };
+  }, []);
 
   const fetchPendingCount = useCallback(async () => {
     try {
@@ -303,7 +314,7 @@ function HomeSceneInner() {
         isOpen={activePanel !== null}
         onClose={close}
         title={activePanel ? panelTitles[activePanel as Exclude<ActivePanel, "diary" | null>] : ""}
-        maxWidth={activePanel === "settings" ? "max-w-sm" : "max-w-md"}
+        maxWidth="max-w-md"
         anchorRect={panelAnchor}
       >
         {renderPanelContent()}
@@ -311,6 +322,8 @@ function HomeSceneInner() {
 
       {/* ── Diary full-screen experience ────────────────── */}
       <DiaryExperience isOpen={diaryOpen} onClose={closeDiary} onNewEntrySaved={awardGrowth} initialEntryId={notificationEntryId} />
+
+      {showPersonalizationSetup && <PersonalizationSetup onComplete={() => setShowPersonalizationSetup(false)} />}
 
       {/* ── Seed selection modal (only when no tree chosen yet) ── */}
       {isLoaded && !treeState.treeType && <SeedSelectionModal />}

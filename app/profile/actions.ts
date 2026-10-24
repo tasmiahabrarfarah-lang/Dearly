@@ -16,8 +16,9 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/friends";
-import type { UserProfile, ProfileUpdatePayload, AvatarKey } from "@/lib/profile";
-import { AVATAR_KEYS, PROFILE_CONSTRAINTS } from "@/lib/profile";
+import type { UserProfile, ProfileUpdatePayload, AvatarKey, AvatarAccessory } from "@/lib/profile";
+import { AVATAR_KEYS, PROFILE_CONSTRAINTS, validateUsername } from "@/lib/profile";
+import { validateDiaryDesign, type DiaryDesign } from "@/lib/diaryDesign";
 
 // ── Ensure a profile row exists for the current user ──────────────────────
 // Idempotent: if the row already exists, returns it unchanged.
@@ -37,7 +38,7 @@ export async function ensureProfileExists(): Promise<
   // Try to fetch the existing profile first
   const { data: existing, error: fetchErr } = await supabase
     .from("profiles")
-    .select("id, display_name, dearly_id, bio, avatar_key, created_at, updated_at")
+    .select("id, display_name, dearly_id, username, profile_title, bio, avatar_key, avatar_accessory, personalization_completed, created_at, updated_at")
     .eq("id", user.id)
     .single();
 
@@ -70,7 +71,7 @@ export async function ensureProfileExists(): Promise<
   // Fetch the row that now exists (either we just inserted it or it was a race)
   const { data: created, error: refetchErr } = await supabase
     .from("profiles")
-    .select("id, display_name, dearly_id, bio, avatar_key, created_at, updated_at")
+    .select("id, display_name, dearly_id, username, profile_title, bio, avatar_key, avatar_accessory, personalization_completed, created_at, updated_at")
     .eq("id", user.id)
     .single();
 
@@ -96,7 +97,7 @@ export async function getMyProfile(): Promise<
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, dearly_id, bio, avatar_key, created_at, updated_at")
+    .select("id, display_name, dearly_id, username, profile_title, bio, avatar_key, avatar_accessory, personalization_completed, created_at, updated_at")
     .eq("id", user.id)
     .single();
 
@@ -147,16 +148,66 @@ export async function updateProfile(
     return { error: "Invalid avatar selection." };
   }
 
+  const title = typeof payload.profile_title === "string" ? payload.profile_title.trim() : "";
+  if (title.length > PROFILE_CONSTRAINTS.profileTitle.max) return { error: "Profile title must be 40 characters or fewer." };
+  const username = typeof payload.username === "string" && payload.username.trim() ? payload.username : "";
+  if (username) {
+    const usernameError = validateUsername(username);
+    if (usernameError) return { error: usernameError };
+  }
+  const accessory = payload.avatar_accessory as AvatarAccessory;
+  if (!["none", "glasses", "flower", "bow"].includes(accessory)) return { error: "Invalid avatar accessory." };
+
   // ── Persist (UPDATE only — never changes id or dearly_id) ────────────
   const { data, error } = await supabase
     .from("profiles")
-    .update({ display_name: displayName, bio, avatar_key: avatarKey })
+    .update({
+      display_name: displayName,
+      bio,
+      avatar_key: avatarKey,
+      avatar_accessory: accessory,
+      profile_title: title,
+      username: username ? username.trim().toLowerCase().replace(/^@/, "") : null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", user.id) // RLS also enforces this
-    .select("id, display_name, dearly_id, bio, avatar_key, created_at, updated_at")
+    .select("id, display_name, dearly_id, username, profile_title, bio, avatar_key, avatar_accessory, personalization_completed, created_at, updated_at")
     .single();
 
+  if (error?.code === "23505") return { error: "That username is already taken. Please choose another." };
   if (error) return { error: error.message };
   if (!data) return { error: "Update failed — profile not found." };
 
   return { success: true, profile: data as UserProfile };
+}
+
+/** Complete the first-visit personalization flow for the signed-in account. */
+export async function savePersonalizationSetup(input: {
+  avatar_key: AvatarKey;
+  avatar_accessory: AvatarAccessory;
+  diary_design: DiaryDesign;
+}): Promise<ActionResult> {
+  const supabase = createClient();
+  if (!supabase) return { error: "Supabase is not configured." };
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return { error: "Not authenticated." };
+  if (!AVATAR_KEYS.includes(input.avatar_key) || !["none", "glasses", "flower", "bow"].includes(input.avatar_accessory)) {
+    return { error: "Choose a supported avatar and accessory." };
+  }
+  const design = validateDiaryDesign(input.diary_design);
+  if (!design) return { error: "Choose a supported diary design." };
+
+  const { error: profileError } = await supabase.from("profiles").update({
+    avatar_key: input.avatar_key,
+    avatar_accessory: input.avatar_accessory,
+    updated_at: new Date().toISOString(),
+  }).eq("id", user.id);
+  if (profileError) return { error: "Your avatar could not be saved. Please try again." };
+
+  const { error: designError } = await supabase.from("user_diary_designs").upsert({ owner_id: user.id, ...design, updated_at: new Date().toISOString() }, { onConflict: "owner_id" });
+  if (designError) return { error: "Your diary design could not be saved. Please try again." };
+
+  const { error: completionError } = await supabase.from("profiles").update({ personalization_completed: true, updated_at: new Date().toISOString() }).eq("id", user.id);
+  if (completionError) return { error: "Your choices are saved, but setup could not be completed. Please try again." };
+  return { success: true };
 }

@@ -65,13 +65,16 @@ interface FieldProps {
   autoComplete?: string;
   placeholder?: string;
   required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
   error?: string;
   rightSlot?: React.ReactNode;
 }
 
 export function Field({
   label, id, type = "text", name, autoComplete,
-  placeholder, required, error, rightSlot
+  placeholder, required, error, rightSlot, minLength, maxLength, pattern
 }: FieldProps) {
   return (
     <div className="flex flex-col gap-1">
@@ -92,6 +95,9 @@ export function Field({
         autoComplete={autoComplete}
         placeholder={placeholder}
         required={required}
+        minLength={minLength}
+        maxLength={maxLength}
+        pattern={pattern}
         aria-describedby={error ? `${id}-error` : undefined}
         className="
           w-full px-4 py-2.5 rounded-xl text-sm

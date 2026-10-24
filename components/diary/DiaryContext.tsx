@@ -28,7 +28,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { AvatarKey } from "@/lib/profile";
 
-export type SharedDiaryEntry = DiaryEntry & { ownerId: string; ownerName: string; ownerDearlyId: string; ownerAvatarKey: AvatarKey };
+export type SharedDiaryEntry = DiaryEntry & { ownerId: string; ownerName: string; ownerDearlyId: string; ownerAvatarKey: AvatarKey; ownerAvatarAccessory: "none" | "glasses" | "flower" | "bow" };
 
 function fromDatabase(row: Record<string, unknown>): DiaryEntry {
   return {
@@ -219,13 +219,13 @@ export function DiaryProvider({
         // account on this browser cannot accidentally inherit another user's diary.
         // Only do this when the import worked; otherwise the local copy is the only copy.
         if (!importFailed) saveEntries([]);
-        const shared = sharedRawRows.map((row) => ({ ...fromDatabase(row), ownerId: String(row.owner_id), ownerName: "A friend", ownerDearlyId: "", ownerAvatarKey: "fox" as AvatarKey }));
+        const shared = sharedRawRows.map((row) => ({ ...fromDatabase(row), ownerId: String(row.owner_id), ownerName: "A friend", ownerDearlyId: "", ownerAvatarKey: "fox" as AvatarKey, ownerAvatarAccessory: "none" as const }));
         if (shared.length) {
           const ids = Array.from(new Set(shared.map((entry) => entry.ownerId)));
-          const { data: profiles } = await supabase.from("profiles").select("id, display_name, dearly_id, avatar_key").in("id", ids);
+          const { data: profiles } = await supabase.from("profiles").select("id, display_name, dearly_id, avatar_key, avatar_accessory").in("id", ids);
           for (const entry of shared) {
             const profile = profiles?.find((item) => item.id === entry.ownerId);
-            if (profile) { entry.ownerName = profile.display_name || "A friend"; entry.ownerDearlyId = profile.dearly_id || ""; entry.ownerAvatarKey = profile.avatar_key || "fox"; }
+            if (profile) { entry.ownerName = profile.display_name || "A friend"; entry.ownerDearlyId = profile.dearly_id || ""; entry.ownerAvatarKey = profile.avatar_key || "fox"; entry.ownerAvatarAccessory = profile.avatar_accessory || "none"; }
           }
         }
         if (cancelled) return;
@@ -276,13 +276,13 @@ export function DiaryProvider({
           .select("*")
           .in("id", entryIds)
           .order("created_at", { ascending: false });
-        refreshed = (data ?? []).map((row) => ({ ...fromDatabase(row), ownerId: String(row.owner_id), ownerName: "A friend", ownerDearlyId: "", ownerAvatarKey: "fox" as AvatarKey }));
+        refreshed = (data ?? []).map((row) => ({ ...fromDatabase(row), ownerId: String(row.owner_id), ownerName: "A friend", ownerDearlyId: "", ownerAvatarKey: "fox" as AvatarKey, ownerAvatarAccessory: "none" as const }));
         if (refreshed.length) {
           const ids = Array.from(new Set(refreshed.map((entry) => entry.ownerId)));
-          const { data: profiles } = await supabase.from("profiles").select("id, display_name, dearly_id, avatar_key").in("id", ids);
+          const { data: profiles } = await supabase.from("profiles").select("id, display_name, dearly_id, avatar_key, avatar_accessory").in("id", ids);
           for (const entry of refreshed) {
             const profile = profiles?.find((item) => item.id === entry.ownerId);
-            if (profile) { entry.ownerName = profile.display_name || "A friend"; entry.ownerDearlyId = profile.dearly_id || ""; entry.ownerAvatarKey = profile.avatar_key || "fox"; }
+            if (profile) { entry.ownerName = profile.display_name || "A friend"; entry.ownerDearlyId = profile.dearly_id || ""; entry.ownerAvatarKey = profile.avatar_key || "fox"; entry.ownerAvatarAccessory = profile.avatar_accessory || "none"; }
           }
         }
       }

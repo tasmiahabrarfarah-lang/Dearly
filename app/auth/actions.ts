@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeUsername, validateUsername } from "@/lib/profile";
 
 const NO_CONFIG_ERROR =
   "Authentication is not configured. Add NEXT_PUBLIC_SUPABASE_URL and " +
@@ -43,6 +44,13 @@ export async function signUp(formData: FormData) {
   const email = typeof emailValue === "string" ? emailValue.trim() : "";
   const password = formData.get("password") as string;
   const requestedPalette = formData.get("palette");
+  const usernameValue = formData.get("username");
+  const username = typeof usernameValue === "string" ? normalizeUsername(usernameValue) : "";
+  const usernameError = validateUsername(username);
+  if (usernameError) return { error: usernameError };
+  const { data: available, error: availabilityError } = await supabase.rpc("is_username_available", { p_username: username });
+  if (availabilityError) return { error: "Username availability could not be checked. Please try again." };
+  if (!available) return { error: "That username is already taken. Please choose another." };
   const palette = requestedPalette === "morning-sky" ? "morning-sky" : "dreamy-lavender";
 
   const { data, error } = await supabase.auth.signUp({
@@ -53,11 +61,12 @@ export async function signUp(formData: FormData) {
       emailRedirectTo: new URL("/auth/callback", site.url).toString(),
       // Auth user metadata is scoped to the account being created and is
       // available even when email confirmation is required.
-      data: { palette },
+      data: { palette, username },
     },
   });
 
   if (error) {
+    if (error.code === "23505") return { error: "That username was just claimed. Please choose another." };
     return { error: error.message };
   }
 

@@ -78,7 +78,7 @@ export default function DiaryEntryView({ entryId }: Props) {
 
         <div className="flex-1 flex items-center justify-center gap-2 px-2">
           {sharedEntry ? (
-            <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--palette-text-muted)" }}><AvatarImage avatarKey={sharedEntry.ownerAvatarKey} className="h-5 w-5" /> Shared by {sharedEntry.ownerName} · Read only</span>
+            <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--palette-text-muted)" }}><AvatarImage avatarKey={sharedEntry.ownerAvatarKey} accessory={sharedEntry.ownerAvatarAccessory} className="h-5 w-5" /> Shared by {sharedEntry.ownerName} · Read only</span>
           ) : <AudienceBadge audience={entry.audience ?? "only_me"} />}
         </div>
 

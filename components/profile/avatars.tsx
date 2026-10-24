@@ -10,6 +10,7 @@
  */
 
 import React from "react";
+import type { AvatarAccessory } from "@/lib/profile";
 import type { AvatarKey } from "@/lib/profile";
 
 export const AVATAR_LABELS: Record<AvatarKey, string> = {
@@ -310,6 +311,7 @@ const AVATAR_COMPONENTS: Record<AvatarKey, () => React.JSX.Element> = {
 
 interface AvatarImageProps {
   avatarKey: AvatarKey;
+  accessory?: AvatarAccessory;
   className?: string;
 }
 
@@ -317,11 +319,16 @@ interface AvatarImageProps {
  * Renders the SVG avatar for the given key.
  * Falls back to the fox avatar for unknown keys.
  */
-export function AvatarImage({ avatarKey, className }: AvatarImageProps) {
+export function AvatarImage({ avatarKey, accessory = "none", className }: AvatarImageProps) {
   const Component = AVATAR_COMPONENTS[avatarKey] ?? FoxAvatar;
   return (
-    <div className={className ?? "w-full h-full"}>
+    <div className={`relative ${className ?? "w-full h-full"}`}>
       <Component />
+      {accessory !== "none" && <svg viewBox="0 0 48 48" className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
+        {accessory === "glasses" && <g fill="none" stroke="#493c55" strokeWidth="1.8"><circle cx="18" cy="23" r="5"/><circle cx="30" cy="23" r="5"/><path d="M23 23h2"/></g>}
+        {accessory === "flower" && <g><circle cx="37" cy="10" r="3" fill="#f5a6bd"/><circle cx="33.5" cy="10" r="2.5" fill="#ffd6e0"/><circle cx="40.5" cy="10" r="2.5" fill="#ffd6e0"/><circle cx="37" cy="6.5" r="2.5" fill="#ffd6e0"/><circle cx="37" cy="13.5" r="2.5" fill="#ffd6e0"/><circle cx="37" cy="10" r="1.5" fill="#f3cf72"/></g>}
+        {accessory === "bow" && <path d="M35 6l6 3-5 4-1-7zm-2 0l-6 3 5 4 1-7z" fill="#e77fa5" stroke="#ac4f75" strokeWidth=".7"/>}
+      </svg>}
     </div>
   );
 }

@@ -83,7 +83,7 @@ function NoteCard({ note, canDelete, onDelete }: NoteCardProps) {
     >
       {/* Author row */}
       <div className="flex items-center gap-2.5 mb-2">
-        <AvatarImage avatarKey={avatarKey} className="h-7 w-7 flex-shrink-0 rounded-full overflow-hidden" />
+        <AvatarImage avatarKey={avatarKey} accessory={note.author?.avatar_accessory} className="h-7 w-7 flex-shrink-0 rounded-full overflow-hidden" />
         <div className="min-w-0 flex-1">
           <p
             className="text-sm font-semibold leading-tight truncate"

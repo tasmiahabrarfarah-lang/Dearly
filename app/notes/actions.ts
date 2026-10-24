@@ -19,6 +19,7 @@ export interface NoteAuthor {
   id: string;
   display_name: string;
   avatar_key: string;
+  avatar_accessory: "none" | "glasses" | "flower" | "bow";
 }
 
 export interface LittleNote {
@@ -81,13 +82,14 @@ export async function getNotes(entryId: string): Promise<GetNotesResult> {
   if (authorIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, display_name, avatar_key")
+      .select("id, display_name, avatar_key, avatar_accessory")
       .in("id", authorIds);
     for (const p of profiles ?? []) {
       profileMap.set(p.id as string, {
         id: p.id as string,
         display_name: (p.display_name as string) || "Someone",
         avatar_key: (p.avatar_key as string) || "star",
+        avatar_accessory: (p.avatar_accessory as NoteAuthor["avatar_accessory"]) || "none",
       });
     }
   }

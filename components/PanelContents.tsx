@@ -10,6 +10,7 @@ import React from "react";
 import { Compass, Sparkles } from "lucide-react";
 import { useTheme, PALETTES, PaletteId } from "./ThemeContext";
 import NotificationsInbox from "./NotificationsPanelContent";
+import DiaryDesignEditor from "./diary/DiaryDesignEditor";
 
 /* ── Shared helpers ──────────────────────────────────────────────────── */
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -124,6 +125,9 @@ export function SettingsPanelContent() {
 
       {saving && <p role="status" className="text-xs" style={{ color: "var(--palette-text-muted)" }}>Saving your theme…</p>}
       {saveError && <p role="alert" className="text-xs" style={{ color: "#b4233d" }}>{saveError}</p>}
+
+      <SectionLabel>My diary cover</SectionLabel>
+      <DiaryDesignEditor />
 
       <SectionLabel>More settings</SectionLabel>
       <Note>Account, privacy, and language settings will be added in future milestones.</Note>

@@ -214,7 +214,7 @@ export default function DiaryEntryList() {
                     </span>
                   )}
                 </p>
-                {sharedEntry && <span className="mb-1 flex items-center gap-1.5 text-xs" style={{ color: "var(--palette-text-muted)" }}><AvatarImage avatarKey={sharedEntry.ownerAvatarKey} className="h-5 w-5" /><span>From {sharedEntry.ownerName}</span></span>}
+                {sharedEntry && <span className="mb-1 flex items-center gap-1.5 text-xs" style={{ color: "var(--palette-text-muted)" }}><AvatarImage avatarKey={sharedEntry.ownerAvatarKey} accessory={sharedEntry.ownerAvatarAccessory} className="h-5 w-5" /><span>From {sharedEntry.ownerName}</span></span>}
                 <p
                   className="text-xs mb-2"
                   style={{ color: "var(--palette-text-muted)" }}

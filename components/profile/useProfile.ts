@@ -55,7 +55,7 @@ export function useProfile(): UseProfileResult {
       // Query own profile
       const { data, error: profileErr } = await supabase
         .from("profiles")
-        .select("id, display_name, dearly_id, bio, avatar_key, created_at, updated_at")
+        .select("id, display_name, dearly_id, username, profile_title, bio, avatar_key, avatar_accessory, personalization_completed, created_at, updated_at")
         .eq("id", user.id)
         .single();
 

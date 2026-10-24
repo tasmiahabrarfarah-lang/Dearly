@@ -34,6 +34,10 @@ Apply [`supabase/migrations/20261023000300_notifications.sql`](supabase/migratio
 
 The inbox refreshes when opened, when the page regains focus, and every minute while visible. It does not use a real-time service. The app does not currently generate system announcements, so there is no system-notification category. The pgTAP checks are in [`supabase/tests/notifications.test.sql`](supabase/tests/notifications.test.sql); run them with `supabase test db` in a configured local Supabase project.
 
+## Profile and diary customization
+
+Apply [`supabase/migrations/20261025000100_profile_and_diary_customization.sql`](supabase/migrations/20261025000100_profile_and_diary_customization.sql) to enable unique usernames, profile titles, avatar accessories, first-visit personalization, and owner-only diary appearance settings. Username checks run through a server action and are backed by a case-normalized unique database index; the existing Dearly ID remains the stable relationship identifier. Diary colors, patterns, bookmark choices, and decorations are restricted to supported values and stored in `user_diary_designs` under the authenticated user's ID with row-level security enabled. New accounts are prompted to choose an avatar and diary preset the first time they enter `/world`; existing profiles are marked as already personalized during migration. Users can update these choices later from My Profile and Settings.
+
 ## Auth email delivery
 
 Sign-up confirmation is sent by Supabase Auth, not by the Next.js app. The built-in Supabase mailer is for testing: it restricts recipients to project team addresses and is limited to two emails per hour. For public sign-ups, configure a custom SMTP provider in Supabase Dashboard → Authentication → SMTP Settings. Also set `NEXT_PUBLIC_SITE_URL` to the real HTTPS app origin in the deployment environment, set the same Site URL in Supabase Auth URL Configuration, and allow the `/auth/callback` redirect there. Local development may use `http://localhost:3000`. The registration screen supports requesting a resend and displays Auth errors such as delivery or rate-limit failures.
