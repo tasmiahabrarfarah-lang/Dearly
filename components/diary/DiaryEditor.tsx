@@ -56,8 +56,14 @@ export default function DiaryEditor({ entryId }: Props) {
   const [draftStorageKey, setDraftStorageKey] = useState<string | null>(null);
   const draftTouchedRef = useRef(false);
 
+  const preserveDraft = useCallback(() => {
+    if (!draftStorageKey || !isDirty) return;
+    try { sessionStorage.setItem(draftStorageKey, JSON.stringify(draft)); } catch { /* best effort */ }
+  }, [draft, draftStorageKey, isDirty]);
+
   // Track save feedback
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftRevisionRef = useRef(0);
 
   // Recover a session-only draft under the authenticated account's own key.
   // If auth cannot be verified, don't read another account's browser draft.
@@ -96,18 +102,32 @@ export default function DiaryEditor({ entryId }: Props) {
 
   useEffect(() => {
     if (!draftStorageKey) return;
-    try {
-      if (isDirty) sessionStorage.setItem(draftStorageKey, JSON.stringify(draft));
-      else sessionStorage.removeItem(draftStorageKey);
-    } catch { /* session storage may be unavailable */ }
+    const timer = window.setTimeout(() => {
+      try {
+        if (isDirty) sessionStorage.setItem(draftStorageKey, JSON.stringify(draft));
+        else sessionStorage.removeItem(draftStorageKey);
+      } catch { /* session storage may be unavailable */ }
+    }, 350);
+    return () => window.clearTimeout(timer);
   }, [draft, draftStorageKey, isDirty]);
 
   useEffect(() => {
     if (!isDirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    const warn = (event: BeforeUnloadEvent) => {
+      if (draftStorageKey) {
+        preserveDraft();
+      }
+      event.preventDefault();
+      event.returnValue = "";
+    };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [isDirty]);
+  }, [draft, draftStorageKey, isDirty, preserveDraft]);
+
+  useEffect(() => {
+    window.addEventListener("dearly:diary-preserve-draft", preserveDraft);
+    return () => window.removeEventListener("dearly:diary-preserve-draft", preserveDraft);
+  }, [preserveDraft]);
 
   // When existing entry changes (navigated to a different one)
   useEffect(() => {
@@ -122,10 +142,12 @@ export default function DiaryEditor({ entryId }: Props) {
   const update = useCallback(
     <K extends keyof DiaryEntry>(key: K, value: DiaryEntry[K]) => {
       draftTouchedRef.current = true;
+      draftRevisionRef.current += 1;
       setDraft((prev) => ({ ...prev, [key]: value }));
       setIsDirty(true);
       setEditorDirty(true);
       setSaved(false);
+      setSaveErrorLocal(null);
     },
     [setEditorDirty]
   );
@@ -155,17 +177,26 @@ export default function DiaryEditor({ entryId }: Props) {
       // Only update createdAt if this is brand new
       createdAt: existing || savedId ? draft.createdAt : now,
     };
+    const savedRevision = draftRevisionRef.current;
 
     try {
-      const ok = await saveEntry(entryToSave);
+      const expectedUpdatedAt = existing?.updatedAt ?? (savedId ? draft.updatedAt : undefined);
+      const ok = await saveEntry(entryToSave, expectedUpdatedAt);
       if (ok) {
         setSavedId(entryToSave.id);
-        setDraft(entryToSave);
-        setIsDirty(false);
-        setEditorDirty(false);
-        setSaved(true);
-        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
-        savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
+        if (savedRevision === draftRevisionRef.current) {
+          setDraft(entryToSave);
+          setIsDirty(false);
+          setEditorDirty(false);
+          if (draftStorageKey) {
+            try { sessionStorage.removeItem(draftStorageKey); } catch { /* best effort */ }
+          }
+          setSaved(true);
+          if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+          savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
+        } else {
+          setSaveErrorLocal("An earlier version was saved. Save again to keep your newer edits.");
+        }
       } else {
         // DiaryContext sets a path-specific error; keep the unsaved draft.
         setSaveErrorLocal(null);
@@ -179,8 +210,7 @@ export default function DiaryEditor({ entryId }: Props) {
         "Leave without saving? A session copy will be kept so you can recover this draft later."
       );
       if (!confirmed) return;
-      setEditorDirty(false);
-      setIsDirty(false);
+      preserveDraft();
     }
     openList();
   };

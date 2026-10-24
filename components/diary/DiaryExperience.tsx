@@ -29,6 +29,7 @@ function DiaryShell({ onClose }: { onClose: () => void }) {
 
   const requestClose = useCallback(() => {
     if (state.editorDirty && !window.confirm("Leave without saving? A session copy will be kept so you can recover this draft later.")) return;
+    if (state.editorDirty) window.dispatchEvent(new Event("dearly:diary-preserve-draft"));
     onClose();
   }, [onClose, state.editorDirty]);
 

@@ -63,11 +63,12 @@ interface DiaryState {
   isLoaded: boolean;
   sharingAvailable: boolean;
   editorDirty: boolean;
+  loadError: string | null;
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────
 type DiaryAction =
-  | { type: "INIT"; entries: DiaryEntry[] }
+  | { type: "INIT"; entries: DiaryEntry[]; loadError?: string | null }
   | { type: "INIT_SHARED"; entries: SharedDiaryEntry[]; sharingAvailable: boolean }
   | { type: "UPSERT"; entry: DiaryEntry }
   | { type: "DELETE"; id: string }
@@ -80,7 +81,7 @@ type DiaryAction =
 function diaryReducer(state: DiaryState, action: DiaryAction): DiaryState {
   switch (action.type) {
     case "INIT":
-      return { ...state, entries: action.entries, isLoaded: true };
+      return { ...state, entries: action.entries, isLoaded: true, loadError: action.loadError ?? null };
     case "INIT_SHARED":
       return { ...state, sharedEntries: action.entries, sharingAvailable: action.sharingAvailable };
     case "UPSERT": {
@@ -119,7 +120,7 @@ interface DiaryContextValue {
   openEditor: (entryId: string | null) => void;
   openReader: (entryId: string) => void;
   // Entry operations
-  saveEntry: (entry: DiaryEntry) => Promise<boolean>;
+  saveEntry: (entry: DiaryEntry, expectedUpdatedAt?: string) => Promise<boolean>;
   removeEntry: (id: string) => Promise<boolean>;
   createBlankEntry: () => DiaryEntry;
   setEditorDirty: (dirty: boolean) => void;
@@ -145,6 +146,7 @@ export function DiaryProvider({
     accessNotice: null,
     sharingAvailable: false,
     editorDirty: false,
+    loadError: null,
   });
 
   useEffect(() => {
@@ -241,7 +243,7 @@ export function DiaryProvider({
         // when Supabase is not configured. Never show that cache to a signed-in
         // account after an account-backed load fails.
         if (signedInAccount || !allowLocalFallback) {
-          dispatch({ type: "INIT", entries: [] });
+          dispatch({ type: "INIT", entries: [], loadError: "Couldn't open your saved diary. Your private entries are safe; check your connection and refresh." });
           dispatch({ type: "INIT_SHARED", entries: [], sharingAvailable: false });
           return;
         }
@@ -317,7 +319,7 @@ export function DiaryProvider({
     })();
   }, [state.sharedEntries]);
 
-  const saveEntry = useCallback(async (entry: DiaryEntry): Promise<boolean> => {
+  const saveEntry = useCallback(async (entry: DiaryEntry, expectedUpdatedAt?: string): Promise<boolean> => {
     // Check if this is a new entry (not yet in the stored list)
     const isNewEntry = !state.entries.some((e) => e.id === entry.id);
 
@@ -342,7 +344,7 @@ export function DiaryProvider({
         if (isNewEntry) {
           ({ error: dbError } = await supabase.from("diary_entries").insert(toDatabase(entry, user.id)));
         } else {
-          const { data: updated, error: updateError } = await supabase
+          let updateQuery = supabase
             .from("diary_entries")
             .update({
               title: entry.title,
@@ -353,14 +355,16 @@ export function DiaryProvider({
               font_size: entry.fontSize,
             })
             .eq("id", entry.id)
-            .eq("owner_id", user.id)
-            .select("id");
+            .eq("owner_id", user.id);
+          if (expectedUpdatedAt) updateQuery = updateQuery.eq("updated_at", expectedUpdatedAt);
+          const { data: updated, error: updateError } = await updateQuery.select("id");
           dbError = updateError;
           // An UPDATE that matches zero rows is NOT an error, so it used to report
           // "Saved" while writing nothing (e.g. an entry that only ever reached local
           // storage). If no row was updated, create it instead.
           if (!dbError && (updated?.length ?? 0) === 0) {
-            ({ error: dbError } = await supabase.from("diary_entries").insert(toDatabase(entry, user.id)));
+            if (expectedUpdatedAt) dbError = { code: "CONFLICT" };
+            else ({ error: dbError } = await supabase.from("diary_entries").insert(toDatabase(entry, user.id)));
           }
         }
         if (!dbError) {
@@ -371,7 +375,9 @@ export function DiaryProvider({
           // so it can't be shared and other devices can't see it.
           upsertEntry(entry);
           const backup = " A copy is kept in this browser.";
-          if (dbError.code === "42P01" || dbError.code === "PGRST205") {
+          if (dbError.code === "CONFLICT") {
+            failureMessage = "This entry changed elsewhere since you opened it. Your edits are saved as a draft here; reload the latest entry before saving again.";
+          } else if (dbError.code === "42P01" || dbError.code === "PGRST205") {
             failureMessage = "The diary database table is missing. Apply the diary sharing migration in Supabase, then try again." + backup;
           } else if (dbError.code === "42501" || dbError.code === "403") {
             failureMessage = "Supabase denied this save. Your sign-in may have expired — try signing out and back in, then retry." + backup;
