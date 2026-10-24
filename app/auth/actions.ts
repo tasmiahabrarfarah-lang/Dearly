@@ -39,12 +39,13 @@ export async function signUp(formData: FormData) {
   const site = getAuthSiteUrl();
   if (!site.url) return { error: site.error };
 
-  const email    = formData.get("email")    as string;
+  const emailValue = formData.get("email");
+  const email = typeof emailValue === "string" ? emailValue.trim() : "";
   const password = formData.get("password") as string;
   const requestedPalette = formData.get("palette");
   const palette = requestedPalette === "morning-sky" ? "morning-sky" : "dreamy-lavender";
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -58,6 +59,15 @@ export async function signUp(formData: FormData) {
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Supabase intentionally returns a successful-looking response for an
+  // already registered address when email confirmations are enabled. In that
+  // case it returns an empty identities array instead of an Auth error.
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    return {
+      error: "This email may already have an account. Try logging in or resetting your password.",
+    };
   }
 
   return { success: true, needsConfirmation: true };
