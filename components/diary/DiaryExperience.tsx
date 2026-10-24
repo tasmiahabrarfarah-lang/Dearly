@@ -14,7 +14,7 @@
  * Respects prefers-reduced-motion.
  */
 
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { DiaryProvider, useDiary } from "./DiaryContext";
@@ -27,14 +27,19 @@ function DiaryShell({ onClose }: { onClose: () => void }) {
   const { state } = useDiary();
   const { view } = state;
 
+  const requestClose = useCallback(() => {
+    if (state.editorDirty && !window.confirm("Leave without saving? A session copy will be kept so you can recover this draft later.")) return;
+    onClose();
+  }, [onClose, state.editorDirty]);
+
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, requestClose]);
 
   const renderView = () => {
     if (view.type === "editor") {
@@ -81,7 +86,7 @@ function DiaryShell({ onClose }: { onClose: () => void }) {
 
         {/* Close button */}
         <button
-          onClick={onClose}
+          onClick={requestClose}
           aria-label="Close Diary"
           className="
             flex items-center gap-1.5 px-3 py-1.5 rounded-xl
@@ -136,7 +141,6 @@ export default function DiaryExperience({ isOpen, onClose, onNewEntrySaved, init
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            onClick={onClose}
             aria-hidden="true"
           />
 

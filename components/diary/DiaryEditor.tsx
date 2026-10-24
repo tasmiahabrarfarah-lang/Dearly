@@ -22,13 +22,14 @@ import {
   formatDate,
 } from "@/lib/diaryStorage";
 import AudienceControl from "./AudienceControl";
+import { createClient } from "@/lib/supabase/client";
 
 interface Props {
   entryId: string | null; // null = new entry
 }
 
 export default function DiaryEditor({ entryId }: Props) {
-  const { state, openList, saveEntry, createBlankEntry } = useDiary();
+  const { state, openList, saveEntry, createBlankEntry, setEditorDirty } = useDiary();
 
   // Resolve initial entry
   const existing =
@@ -51,26 +52,82 @@ export default function DiaryEditor({ entryId }: Props) {
   const [savedId, setSavedId] = useState<string | null>(existing?.id ?? null);
   const [isDirty, setIsDirty] = useState(false);
   const [saveErrorLocal, setSaveErrorLocal] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [draftStorageKey, setDraftStorageKey] = useState<string | null>(null);
+  const draftTouchedRef = useRef(false);
 
   // Track save feedback
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Recover a session-only draft under the authenticated account's own key.
+  // If auth cannot be verified, don't read another account's browser draft.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      let scope: string;
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        try {
+          const { data, error } = await createClient().auth.getUser();
+          if (error || cancelled) return;
+          scope = data.user?.id ?? "local";
+        } catch { return; }
+      } else scope = "local";
+      const key = `dearly:diary-draft:${scope}:${entryId ?? "new"}`;
+      if (cancelled) return;
+      setDraftStorageKey(key);
+      try {
+        const raw = sessionStorage.getItem(key);
+        if (!raw || draftTouchedRef.current) return;
+        const recovered = JSON.parse(raw) as Partial<DiaryEntry>;
+        if (typeof recovered.id !== "string" || typeof recovered.title !== "string" || typeof recovered.body !== "string" || typeof recovered.createdAt !== "string") return;
+        const safeDraft = { ...createBlankEntry(), ...recovered,
+          pageColor: PAGE_COLORS.some((item) => item.value === recovered.pageColor) ? recovered.pageColor! : createBlankEntry().pageColor,
+          fontFamily: FONT_OPTIONS.some((item) => item.value === recovered.fontFamily) ? recovered.fontFamily! : createBlankEntry().fontFamily,
+          fontSize: FONT_SIZES.some((item) => item.value === recovered.fontSize) ? recovered.fontSize! : createBlankEntry().fontSize,
+          audience: "only_me" as const, allowedFriendIds: [], excludedFriendIds: [],
+        };
+        setDraft(safeDraft);
+        setIsDirty(true);
+        setEditorDirty(true);
+      } catch { /* session storage may be unavailable */ }
+    })();
+    return () => { cancelled = true; };
+  }, [entryId, createBlankEntry, setEditorDirty]);
+
+  useEffect(() => {
+    if (!draftStorageKey) return;
+    try {
+      if (isDirty) sessionStorage.setItem(draftStorageKey, JSON.stringify(draft));
+      else sessionStorage.removeItem(draftStorageKey);
+    } catch { /* session storage may be unavailable */ }
+  }, [draft, draftStorageKey, isDirty]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty]);
 
   // When existing entry changes (navigated to a different one)
   useEffect(() => {
     if (existing) {
       setDraft({ ...existing });
       setIsDirty(false);
+      setEditorDirty(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryId]);
 
   const update = useCallback(
     <K extends keyof DiaryEntry>(key: K, value: DiaryEntry[K]) => {
+      draftTouchedRef.current = true;
       setDraft((prev) => ({ ...prev, [key]: value }));
       setIsDirty(true);
+      setEditorDirty(true);
       setSaved(false);
     },
-    []
+    [setEditorDirty]
   );
 
   // Audience is persisted through the share rows (not the entry save), so changing it
@@ -81,12 +138,14 @@ export default function DiaryEditor({ entryId }: Props) {
   }, []);
 
   const handleSave = async () => {
+    if (saving) return;
     // Skip saving empty new entries
     if (!draft.body.trim() && !draft.title.trim()) {
       setSaveErrorLocal("Add a title or some writing before saving.");
       return;
     }
     setSaveErrorLocal(null);
+    setSaving(true);
 
     const now = new Date().toISOString();
     const entryToSave: DiaryEntry = {
@@ -97,27 +156,31 @@ export default function DiaryEditor({ entryId }: Props) {
       createdAt: existing || savedId ? draft.createdAt : now,
     };
 
-    const ok = await saveEntry(entryToSave);
-    if (ok) {
-      setSavedId(entryToSave.id);
-      setDraft(entryToSave);
-      setIsDirty(false);
-      setSaved(true);
-      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
-      savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
-    } else {
-      // DiaryContext sets a path-specific error (Supabase or local storage).
-      // Avoid replacing it with a generic browser-quota message.
-      setSaveErrorLocal(null);
-    }
+    try {
+      const ok = await saveEntry(entryToSave);
+      if (ok) {
+        setSavedId(entryToSave.id);
+        setDraft(entryToSave);
+        setIsDirty(false);
+        setEditorDirty(false);
+        setSaved(true);
+        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
+      } else {
+        // DiaryContext sets a path-specific error; keep the unsaved draft.
+        setSaveErrorLocal(null);
+      }
+    } finally { setSaving(false); }
   };
 
   const handleBack = () => {
     if (isDirty) {
       const confirmed = window.confirm(
-        "You have unsaved changes. Leave without saving?"
+        "Leave without saving? A session copy will be kept so you can recover this draft later."
       );
       if (!confirmed) return;
+      setEditorDirty(false);
+      setIsDirty(false);
     }
     openList();
   };
@@ -133,7 +196,7 @@ export default function DiaryEditor({ entryId }: Props) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, isDirty]);
+  }, [draft, isDirty, saving]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -169,6 +232,7 @@ export default function DiaryEditor({ entryId }: Props) {
           {/* Save button */}
           <button
             onClick={handleSave}
+            disabled={saving}
             className="
               flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
               transition-all duration-150 active:scale-95
@@ -187,7 +251,7 @@ export default function DiaryEditor({ entryId }: Props) {
             ) : (
               <>
                 <Save size={14} aria-hidden />
-                <span>Save Entry</span>
+                <span>{saving ? "Saving…" : "Save Entry"}</span>
               </>
             )}
           </button>

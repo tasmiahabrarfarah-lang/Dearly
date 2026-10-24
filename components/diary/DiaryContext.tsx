@@ -62,6 +62,7 @@ interface DiaryState {
   accessNotice: string | null;
   isLoaded: boolean;
   sharingAvailable: boolean;
+  editorDirty: boolean;
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ type DiaryAction =
   | { type: "SET_VIEW"; view: DiaryView }
   | { type: "SET_SAVE_ERROR"; message: string | null }
   | { type: "SET_ACCESS_NOTICE"; message: string | null }
+  | { type: "SET_EDITOR_DIRTY"; dirty: boolean }
   | { type: "REVOKE_SHARED"; id: string };
 
 function diaryReducer(state: DiaryState, action: DiaryAction): DiaryState {
@@ -100,6 +102,8 @@ function diaryReducer(state: DiaryState, action: DiaryAction): DiaryState {
       return { ...state, saveError: action.message };
     case "SET_ACCESS_NOTICE":
       return { ...state, accessNotice: action.message };
+    case "SET_EDITOR_DIRTY":
+      return { ...state, editorDirty: action.dirty };
     case "REVOKE_SHARED":
       return { ...state, sharedEntries: state.sharedEntries.filter((entry) => entry.id !== action.id) };
     default:
@@ -118,6 +122,7 @@ interface DiaryContextValue {
   saveEntry: (entry: DiaryEntry) => Promise<boolean>;
   removeEntry: (id: string) => Promise<boolean>;
   createBlankEntry: () => DiaryEntry;
+  setEditorDirty: (dirty: boolean) => void;
 }
 
 const DiaryContext = createContext<DiaryContextValue | null>(null);
@@ -139,6 +144,7 @@ export function DiaryProvider({
     isLoaded: false,
     accessNotice: null,
     sharingAvailable: false,
+    editorDirty: false,
   });
 
   useEffect(() => {
@@ -152,12 +158,17 @@ export function DiaryProvider({
   useEffect(() => {
     let cancelled = false;
     const localEntries = loadEntries();
+    let signedInAccount = false;
+    let allowLocalFallback = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     void (async () => {
       try {
         if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) throw new Error("Supabase is not configured");
         const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
+        allowLocalFallback = !user;
         if (!user) throw new Error("No signed-in user");
+        signedInAccount = true;
         let importFailed = false;
         if (localEntries.length) {
           // Best-effort import of any locally-stored entries into Supabase.
@@ -226,6 +237,14 @@ export function DiaryProvider({
         dispatch({ type: "INIT_SHARED", entries: shared, sharingAvailable: true });
       } catch {
         if (cancelled) return;
+        // A browser-wide diary is only a valid fallback while signed out or
+        // when Supabase is not configured. Never show that cache to a signed-in
+        // account after an account-backed load fails.
+        if (signedInAccount || !allowLocalFallback) {
+          dispatch({ type: "INIT", entries: [] });
+          dispatch({ type: "INIT_SHARED", entries: [], sharingAvailable: false });
+          return;
+        }
         localEntries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         dispatch({ type: "INIT", entries: localEntries });
         dispatch({ type: "INIT_SHARED", entries: [], sharingAvailable: false });
@@ -235,6 +254,7 @@ export function DiaryProvider({
   }, []);
 
   const openList = useCallback(() => {
+    dispatch({ type: "SET_EDITOR_DIRTY", dirty: false });
     dispatch({ type: "SET_VIEW", view: { type: "list" } });
     if (!state.sharingAvailable) return;
     const supabase = createClient();
@@ -247,7 +267,7 @@ export function DiaryProvider({
         .select("entry_id")
         .eq("recipient_id", user.id);
       const entryIds = (incomingShares ?? []).map((r) => r.entry_id as string);
-      let refreshed: typeof state.sharedEntries = [];
+      let refreshed: SharedDiaryEntry[] = [];
       if (entryIds.length) {
         const { data } = await supabase
           .from("diary_entries")
@@ -266,7 +286,7 @@ export function DiaryProvider({
       }
       dispatch({ type: "INIT_SHARED", entries: refreshed, sharingAvailable: true });
     }).catch(() => undefined);
-  }, [state.sharingAvailable, state.sharedEntries]);
+  }, [state.sharingAvailable]);
   const openEditor = useCallback(
     (entryId: string | null) =>
       dispatch({ type: "SET_VIEW", view: { type: "editor", entryId } }),
@@ -302,10 +322,15 @@ export function DiaryProvider({
     const isNewEntry = !state.entries.some((e) => e.id === entry.id);
 
     let ok = false;
+    let authResolved = false;
+    let signedIn = false;
     let failureMessage = "Couldn't save this entry. Check your connection and try again.";
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      authResolved = true;
+      signedIn = Boolean(user);
       if (!user) {
         ok = upsertEntry(entry);
         if (!ok) failureMessage = "Couldn't save to this browser. Its local storage may be full or unavailable. Sign in on this address to save entries to your account.";
@@ -356,8 +381,14 @@ export function DiaryProvider({
         }
       }
     } catch {
-      ok = upsertEntry(entry);
-      if (!ok) failureMessage = "Couldn't save to this browser. Its local storage may be full or unavailable. Sign in on this address to save entries to your account.";
+      if ((authResolved && !signedIn) || (!authResolved && (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY))) {
+        ok = upsertEntry(entry);
+        if (!ok) failureMessage = "Couldn't save to this browser. Its local storage may be full or unavailable. Sign in on this address to save entries to your account.";
+      } else {
+        // Preserve a recovery copy, but don't claim a signed-in save succeeded
+        // when the account-backed write could not be confirmed.
+        upsertEntry(entry);
+      }
     }
     if (ok) {
       dispatch({ type: "UPSERT", entry });
@@ -376,14 +407,20 @@ export function DiaryProvider({
   }, [onNewEntrySaved, state.entries]);
 
   const removeEntry = useCallback(async (id: string) => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      deleteEntry(id);
+      dispatch({ type: "DELETE", id });
+      return true;
+    }
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) return false;
       if (user) {
-        const { error } = await supabase.from("diary_entries").delete().eq("id", id).eq("owner_id", user.id);
-        if (error) return false;
+        const { data, error } = await supabase.from("diary_entries").delete().eq("id", id).eq("owner_id", user.id).select("id");
+        if (error || !data?.length) return false;
       } else deleteEntry(id);
-    } catch { deleteEntry(id); }
+    } catch { return false; }
     deleteEntry(id);
     dispatch({ type: "DELETE", id });
     return true;
@@ -407,6 +444,10 @@ export function DiaryProvider({
     };
   }, []);
 
+  const setEditorDirty = useCallback((dirty: boolean) => {
+    dispatch({ type: "SET_EDITOR_DIRTY", dirty });
+  }, []);
+
   return (
     <DiaryContext.Provider
       value={{
@@ -417,6 +458,7 @@ export function DiaryProvider({
         saveEntry,
         removeEntry,
         createBlankEntry,
+        setEditorDirty,
       }}
     >
       {children}

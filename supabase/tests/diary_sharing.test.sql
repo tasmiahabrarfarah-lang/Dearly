@@ -44,7 +44,7 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', current_setting('test.diary_accepted'), true);
 select extensions.is((select count(*)::integer from public.diary_entries where id = 'pgtap-diary-sharing-entry'), 1, 'accepted selected friend can read the shared entry');
-select extensions.is((select count(*)::integer from public.diary_entry_shares where entry_id = 'pgtap-diary-sharing-entry'), 0, 'recipient cannot read the owner recipient list');
+select extensions.is((select count(*)::integer from public.diary_entry_shares where entry_id = 'pgtap-diary-sharing-entry' and recipient_id = auth.uid()), 1, 'recipient can see only their own share grant');
 select extensions.is((with changed as (update public.diary_entries set body = 'tampered' where id = 'pgtap-diary-sharing-entry' returning id) select count(*)::integer from changed), 0, 'recipient cannot edit the owner entry');
 select extensions.throws_ok(
   format('select public.set_diary_entry_shares(%L, %L::uuid[])', 'pgtap-diary-sharing-entry', '{}'),

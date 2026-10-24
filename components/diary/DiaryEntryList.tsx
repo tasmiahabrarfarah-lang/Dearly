@@ -19,6 +19,7 @@ export default function DiaryEntryList() {
   const { state, openEditor, openReader, removeEntry } =
     useDiary();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const { entries } = state;
   const [listMode, setListMode] = useState<"mine" | "shared">("mine");
@@ -35,7 +36,9 @@ export default function DiaryEntryList() {
   };
 
   const handleDelete = async (id: string) => {
+    setDeleteError(null);
     if (await removeEntry(id)) setConfirmDeleteId(null);
+    else setDeleteError("This entry could not be deleted. Check your connection and try again.");
   };
 
   return (
@@ -79,6 +82,7 @@ export default function DiaryEntryList() {
       </div>
 
       {state.accessNotice && <p role="status" className="mb-3 rounded-xl px-3 py-2 text-sm" style={{ background: "var(--palette-ground)", color: "var(--palette-text-primary)" }}>{state.accessNotice}</p>}
+      {deleteError && <p role="alert" className="mb-3 rounded-xl px-3 py-2 text-sm" style={{ background: "rgba(180,40,50,.08)", color: "#a33" }}>{deleteError}</p>}
       {!state.isLoaded && <p role="status" className="py-8 text-center text-sm" style={{ color: "var(--palette-text-muted)" }}>Opening your diary…</p>}
 
       <div className="mb-3 flex gap-2" role="tablist" aria-label="Diary entries">

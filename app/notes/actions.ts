@@ -181,10 +181,11 @@ export async function deleteNote(noteId: string): Promise<NoteActionResult> {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return { error: "Please sign in to delete notes." };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("little_notes")
     .delete()
-    .eq("id", noteId);
+    .eq("id", noteId)
+    .select("id");
 
   if (error) {
     if (error.code === "42P01" || error.code === "PGRST205") {
@@ -195,6 +196,7 @@ export async function deleteNote(noteId: string): Promise<NoteActionResult> {
     }
     return { error: "Couldn't delete the note. Please try again." };
   }
+  if (!data?.length) return { error: "You don't have permission to delete this note, or it no longer exists." };
 
   return { success: true };
 }

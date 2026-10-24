@@ -88,12 +88,14 @@ export async function sendFriendRequest(
     }
     // Crossed-request: they already sent us a request → auto-accept it
     if (existing.requester_id === addresseeId && existing.addressee_id === user.id) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("friendships")
         .update({ status: "accepted" })
         .eq("id", existing.id)
-        .eq("addressee_id", user.id); // RLS double-check
+        .eq("addressee_id", user.id)
+        .select("id"); // RLS double-check and confirm a row changed
       if (error) return { error: error.message };
+      if (!data?.length) return { error: "Request not found or you are not the recipient." };
       return { success: true };
     }
     // We already sent them a request
@@ -124,15 +126,16 @@ export async function acceptFriendRequest(
   if (authError || !user) return { error: "Not authenticated." };
 
   // Only update rows where we are the addressee and status is pending
-  const { error, count } = await supabase
+  const { data, error } = await supabase
     .from("friendships")
     .update({ status: "accepted" })
     .eq("id", friendshipId)
     .eq("addressee_id", user.id)  // must be addressed to us
-    .eq("status", "pending");     // must still be pending
+    .eq("status", "pending")     // must still be pending
+    .select("id");
 
   if (error) return { error: error.message };
-  if (count === 0) return { error: "Request not found or you are not the recipient." };
+  if (!data?.length) return { error: "Request not found or you are not the recipient." };
   return { success: true };
 }
 
@@ -147,15 +150,16 @@ export async function declineFriendRequest(
   if (authError || !user) return { error: "Not authenticated." };
 
   // Delete only if we are the addressee and status is pending
-  const { error, count } = await supabase
+  const { data, error } = await supabase
     .from("friendships")
     .delete()
     .eq("id", friendshipId)
     .eq("addressee_id", user.id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
 
   if (error) return { error: error.message };
-  if (count === 0) return { error: "Request not found or you are not the recipient." };
+  if (!data?.length) return { error: "Request not found or you are not the recipient." };
   return { success: true };
 }
 
@@ -170,15 +174,16 @@ export async function cancelFriendRequest(
   if (authError || !user) return { error: "Not authenticated." };
 
   // Delete only if we are the requester and status is pending
-  const { error, count } = await supabase
+  const { data, error } = await supabase
     .from("friendships")
     .delete()
     .eq("id", friendshipId)
     .eq("requester_id", user.id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
 
   if (error) return { error: error.message };
-  if (count === 0) return { error: "Request not found or you are not the sender." };
+  if (!data?.length) return { error: "Request not found or you are not the sender." };
   return { success: true };
 }
 
@@ -193,14 +198,15 @@ export async function removeFriend(
   if (authError || !user) return { error: "Not authenticated." };
 
   // Delete only if we are a participant and status is accepted
-  const { error, count } = await supabase
+  const { data, error } = await supabase
     .from("friendships")
     .delete()
     .eq("id", friendshipId)
     .eq("status", "accepted")
-    .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+    .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+    .select("id");
 
   if (error) return { error: error.message };
-  if (count === 0) return { error: "Friendship not found or you are not a participant." };
+  if (!data?.length) return { error: "Friendship not found or you are not a participant." };
   return { success: true };
 }

@@ -58,8 +58,8 @@ create policy "Owners can delete diary entries" on public.diary_entries for dele
   using (owner_id = (select auth.uid()));
 
 drop policy if exists "Owners can view their sharing recipients" on public.diary_entry_shares;
-create policy "Owners can view their sharing recipients" on public.diary_entry_shares for select to authenticated
-  using (owner_id = (select auth.uid()));
+create policy "Owners and recipients can view their diary shares" on public.diary_entry_shares for select to authenticated
+  using (owner_id = (select auth.uid()) or recipient_id = (select auth.uid()));
 -- Share mutations are only available through the validated RPC below.
 drop policy if exists "Owners can insert diary shares" on public.diary_entry_shares;
 drop policy if exists "Owners can delete diary shares" on public.diary_entry_shares;
