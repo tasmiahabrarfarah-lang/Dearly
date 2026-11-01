@@ -49,7 +49,15 @@ export async function signUp(formData: FormData) {
   const usernameError = validateUsername(username);
   if (usernameError) return { error: usernameError };
   const { data: available, error: availabilityError } = await supabase.rpc("is_username_available", { p_username: username });
-  if (availabilityError) return { error: "Username availability could not be checked. Please try again." };
+  if (availabilityError) {
+    // This usually means the DB is cold-starting (e.g. after Supabase free-tier
+    // auto-pause). Give the user a clear, actionable message.
+    return {
+      error:
+        "Couldn't reach the server to check username availability. " +
+        "Please wait a moment and try again — the service may be waking up.",
+    };
+  }
   if (!available) return { error: "That username is already taken. Please choose another." };
   const palette = requestedPalette === "morning-sky" ? "morning-sky" : "dreamy-lavender";
 

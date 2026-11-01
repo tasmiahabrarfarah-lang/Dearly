@@ -4,10 +4,18 @@
  *
  * Public routes: /, /welcome, /auth/*, /auth/callback
  * Protected routes: /world (the home scene)
+ *
+ * Performance note: /welcome and / are fully public static pages.
+ * We skip the getUser() network call for them to avoid cold-start
+ * timeouts (e.g. after Supabase free-tier project auto-pause).
+ * The session is still refreshed for all other routes.
  */
 
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+
+/** Routes that never need a session check — skip getUser() entirely. */
+const PUBLIC_STATIC_ROUTES = new Set(["/", "/welcome"]);
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -18,6 +26,14 @@ export async function middleware(request: NextRequest) {
 
   if (!supabaseUrl || !supabaseKey) {
     // No Supabase configured — allow all routes during development
+    return supabaseResponse;
+  }
+
+  const { pathname } = request.nextUrl;
+
+  // Skip the network round-trip for fully public, non-personalized pages.
+  // This prevents 504 timeouts when the Supabase project is cold/paused.
+  if (PUBLIC_STATIC_ROUTES.has(pathname)) {
     return supabaseResponse;
   }
 
@@ -38,12 +54,13 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // Refresh the session (keeps tokens alive)
+  // Refresh the session (keeps tokens alive).
+  // getUser() contacts the Supabase auth server — if the project is paused
+  // or cold-starting this may be slow. The matcher below excludes routes
+  // that do not need a session to reduce unnecessary calls.
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   // Protect /world — redirect unauthenticated users to /welcome
   if (pathname.startsWith("/world") && !user) {
@@ -55,8 +72,7 @@ export async function middleware(request: NextRequest) {
   // Redirect authenticated users away from auth pages to /world
   if (
     user &&
-    (pathname === "/welcome" ||
-      pathname === "/auth/login" ||
+    (pathname === "/auth/login" ||
       pathname === "/auth/register" ||
       pathname === "/auth/forgot-password")
   ) {
@@ -70,7 +86,16 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Run on all routes except static files and Next.js internals
-    "/((?!_next/static|_next/image|favicon.ico|assets|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    /*
+     * Match all request paths EXCEPT:
+     *  - _next/static  (Next.js static assets)
+     *  - _next/image   (Next.js image optimisation)
+     *  - favicon.ico
+     *  - /assets/**    (public images / scenery)
+     *  - /api/**       (API routes handle their own auth)
+     *  - /auth/callback (mid-session exchange — no getUser needed here)
+     *  - image file extensions
+     */
+    "/((?!_next/static|_next/image|favicon\\.ico|assets|api|auth/callback|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
