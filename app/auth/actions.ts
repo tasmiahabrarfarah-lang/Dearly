@@ -16,7 +16,12 @@ const NO_CONFIG_ERROR =
   "NEXT_PUBLIC_SUPABASE_ANON_KEY to your .env.local file and restart the dev server.";
 
 function getAuthSiteUrl(): { url?: string; error?: string } {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  // Prefer the explicitly-configured site URL.
+  // Fall back to the Vercel deployment URL that the platform injects automatically.
+  const configured =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+
   if (!configured) return { error: "Set NEXT_PUBLIC_SITE_URL to the public address of this app before requesting an email." };
   try {
     const parsed = new URL(configured);
@@ -132,6 +137,7 @@ export async function signIn(formData: FormData) {
 export async function signOut() {
   const supabase = createClient();
   if (supabase) await supabase.auth.signOut();
+  revalidatePath("/world");
   revalidatePath("/");
   redirect("/welcome");
 }
@@ -155,4 +161,35 @@ export async function forgotPassword(formData: FormData) {
 
   // Always return a neutral success message — do not reveal whether email exists
   return { success: true };
+}
+
+// ── Reset Password (from email link) ──────────────────────────────────────
+/**
+ * Called from /auth/reset-password after the user follows the email link.
+ * At this point Supabase has already exchanged the code for a session via
+ * /auth/callback, so supabase.auth.updateUser() works without any extra token.
+ */
+export async function updatePassword(formData: FormData) {
+  const supabase = createClient();
+  if (!supabase) return { error: NO_CONFIG_ERROR };
+
+  const password = formData.get("password") as string;
+  const confirm  = formData.get("confirm_password") as string;
+
+  if (!password || password.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+  if (password !== confirm) {
+    return { error: "Passwords don't match." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  // Session is still valid — send them to their world
+  revalidatePath("/world");
+  redirect("/world");
 }
